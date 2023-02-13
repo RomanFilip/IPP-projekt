@@ -125,7 +125,7 @@ class Tester {
     echo "\n";
     $failedStr = $this->failed === 0 ? green("no failed tests") : red("{$this->failed} failed tests");
     $passedStr = $this->passed === 0 ? red("no passed tests") : green("{$this->passed} passed tests");
-    echo "Tests finished with $failedStr and $passedStr";
+    echo "Tests finished with $failedStr and $passedStr\n";
     exec("rm -r tmp");
   }
 }
