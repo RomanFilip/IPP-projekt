@@ -42,6 +42,9 @@ function printArguments($argument, $order, $isLabel=false) {
         case 'string':
             $type = "string";
             $argument = $operation[1];
+            $argument = preg_replace('/</', '&lt;', $argument);
+            $argument = preg_replace('/>/', '&gt;', $argument);
+            // $argument = preg_replace('/&/', '&amp', $argument);
             break;
         case 'nil':
             $type = "nil";
@@ -71,6 +74,7 @@ if ($argc > 1){
  
 $order = 1;
 $header = false;
+
 $variables = [];
 // $labelList = [];
 
@@ -83,24 +87,25 @@ $variables = [];
 echo("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 while($line = fgets(STDIN)) {
     // echo($line);
+    $line = preg_replace('/(?<!^)#.*/', '', $line);
+    // $line = preg_replace('/\s+/', ' ', $line);
+    
     $splitted_line = explode(' ', trim($line, "\n")); 
     if ($splitted_line[0] == '.IPPcode23') {
         $header = true;
         echo("<program language=\"IPPcode23\">\n");
     } 
-    if ($header == false) {
+    if ($header == false && $splitted_line[0] != '#') {
         exit(ERROR_MISSING_HEADER); # chybna hlavicka;
     }
     // check trim
     // oddelit komentar strip
     // echo($splitted_line[0])."\n";
     // echo count($splitted_line)."\n";
-
+    
     #####  ????????
-    // $line = preg_replace('/#.*/', '', $line);
-    // $line = preg_replace('/\s+/', ' ', $line);
-
-
+    
+    
     switch(strtoupper($splitted_line[0])) {
         // 1 var
         case 'POPS':
@@ -181,9 +186,14 @@ while($line = fgets(STDIN)) {
         case 'TYPE':
         case 'STRLEN':
         case 'INT2CHAR':
-        case 'READ':
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
+            break;
+        case 'READ':
+            $order = printInstruction($order, $splitted_line[0]);
+            for ($i = 1; $i < count($splitted_line); $i++) {
+                printArguments($splitted_line[$i], $i);
+            }
             break;
         case 'JUMPIFEQ':            
         case 'JUMPIFNEQ': 
@@ -194,6 +204,9 @@ while($line = fgets(STDIN)) {
         case 'WRITE': // todo
         case 'EXIT':
         case 'DPRINT':
+            $order = printInstruction($order, $splitted_line[0]);
+            printArguments($splitted_line[1], 1);
+            break;
         case 'CREATEFRAME':
         case 'PUSHFRAME':
         case 'POPFRAME':
@@ -209,7 +222,7 @@ while($line = fgets(STDIN)) {
             echo $splitted_line[0];
             exit(ERROR_OPERATING_CODE);
     }
-    if($splitted_line[0] != '.IPPcode23') echo("\t</instruction>\n");
+    if($splitted_line[0] != '.IPPcode23' && $splitted_line[0] != '#') echo("\t</instruction>\n");
 }
 echo("</program>\n");
 exit(SUCCESS);
