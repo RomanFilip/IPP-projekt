@@ -62,6 +62,28 @@ function printArguments($argument, $order, $isLabel=false) {
     echo("\t\t<arg".$order." type=\"".$type."\">$argument</arg".$order.">\n");
 }
 
+function check_var($var) {
+            if (preg_match("/(Lf|GF|TF)@[a-zA-Z0-9_-$&%*!?]*/", $var)) {
+                return SUCCESS;
+            } else {
+                return ERROR_LEX_SYNTAX;
+            }
+}
+function check_label($label) {
+            if (preg_match("/(Lf|GF|TF)@[a-zA-Z0-9_-$&%*!?]*/", $label)) {
+                return SUCCESS;
+            } else {
+                return ERROR_LEX_SYNTAX;
+            }
+}
+function check_symb($symb) {
+            if (preg_match("/(Lf|GF|TF)@[a-zA-Z0-9_-$&%*!?]*|int@[-+0-9][0-9]*|string@[a-zA-Z][a-zA-Z]*|nil@nil|bool@(true|false)/", $symb)) {
+                return SUCCESS;
+            } else {
+                return ERROR_LEX_SYNTAX;
+            }
+}
+
 // spracovanie parametrov
 if ($argc > 1){
     if ($argv[1] == "--help") {
@@ -105,11 +127,12 @@ while($line = fgets(STDIN)) {
     
     #####  ????????
     
-    
+    $lenght = count($splitted_line);
     switch(strtoupper($splitted_line[0])) {
         // 1 var
         case 'POPS':
         case 'DEFVAR':
+            
             $order = printInstruction($order, $splitted_line[0]);
             if (preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*/", $splitted_line[1])) {
                 printArguments($splitted_line[1], 1);
@@ -125,8 +148,10 @@ while($line = fgets(STDIN)) {
         case 'CALL':
         case 'JUMP':
             // if (!array_search($splitted_line[1], $labelList)) exit(ERROR_LEX_SYNTAX);
-            $order = printInstruction($order, $splitted_line[0]);
-            printArguments($splitted_line[1], 1, true);
+            if (preg_match("/(Lf|GF|TF)@)[a-zA-Z#&*$][a-zA-Z#&*$0-9]*/", $splitted_line[1])) {
+                $order = printInstruction($order, $splitted_line[0]);
+                printArguments($splitted_line[1], 1, true);
+            } else exit(ERROR_LEX_SYNTAX);
             // check if is defined?
             break;
         case 'MOVE':
@@ -212,6 +237,7 @@ while($line = fgets(STDIN)) {
         case 'POPFRAME':
         case 'RETURN':
         case 'BREAK':
+            if($lenght != 1) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             break;
         case '#':
