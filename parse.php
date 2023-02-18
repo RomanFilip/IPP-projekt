@@ -63,25 +63,19 @@ function printArguments($argument, $order, $isLabel=false) {
 }
 
 function check_var($var) {
-            if (preg_match("/(Lf|GF|TF)@[a-zA-Z0-9_-$&%*!?]*/", $var)) {
-                return SUCCESS;
-            } else {
-                return ERROR_LEX_SYNTAX;
-            }
+    return preg_match("/(Lf|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*/", $var);
 }
 function check_label($label) {
-            if (preg_match("/(Lf|GF|TF)@[a-zA-Z0-9_-$&%*!?]*/", $label)) {
-                return SUCCESS;
-            } else {
-                return ERROR_LEX_SYNTAX;
-            }
+    return preg_match("/(Lf|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*/", $label);
 }
 function check_symb($symb) {
-            if (preg_match("/(Lf|GF|TF)@[a-zA-Z0-9_-$&%*!?]*|int@[-+0-9][0-9]*|string@[a-zA-Z][a-zA-Z]*|nil@nil|bool@(true|false)/", $symb)) {
-                return SUCCESS;
-            } else {
-                return ERROR_LEX_SYNTAX;
-            }
+    return preg_match("/(Lf|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*|int@[-+0-9][0-9]*|string@[a-zA-Z][a-zA-Z]*|nil@nil|bool@(true|false)/", $symb);
+}
+
+function check_arguments_lenght($number_of_arguments, $line) {
+    $lenght = count($line);
+    if (!$line[$lenght-1]) $lenght--;
+    return $number_of_arguments == $lenght;
 }
 
 // spracovanie parametrov
@@ -110,7 +104,7 @@ echo("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 while($line = fgets(STDIN)) {
     // echo($line);
     $line = preg_replace('/(?<!^)#.*/', '', $line);
-    // $line = preg_replace('/\s+/', ' ', $line);
+    $line = preg_replace('/\s+/', ' ', $line);
     
     $splitted_line = explode(' ', trim($line, "\n")); 
     if ($splitted_line[0] == '.IPPcode23') {
@@ -127,70 +121,60 @@ while($line = fgets(STDIN)) {
     
     #####  ????????
     
-    $lenght = count($splitted_line);
+    // $lenght = count($splitted_line);
+    // $lenght = check_arguments_lenght($splitted_line);
+    // echo $lenght."\n";
     switch(strtoupper($splitted_line[0])) {
         // 1 var
         case 'POPS':
         case 'DEFVAR':
-            
+            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
-            if (preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*/", $splitted_line[1])) {
-                printArguments($splitted_line[1], 1);
-                array_push($variables, $splitted_line[1]);
-                // echo("\t\t<arg1 type=\"var\">$splitted_line[1]</arg1>\n");
-            } else {
-                exit(ERROR_LEX_SYNTAX);
-            }
+            printArguments($splitted_line[1], 1);
+            // array_push($variables, $splitted_line[1]);
             break;
         // label
         case 'LABEL':
             // array_push($labelList, $splitted_line[1]);
         case 'CALL':
         case 'JUMP':
+        case 'JUMPIFEQ':            
+        case 'JUMPIFNEQ': 
             // if (!array_search($splitted_line[1], $labelList)) exit(ERROR_LEX_SYNTAX);
-            if (preg_match("/(Lf|GF|TF)@)[a-zA-Z#&*$][a-zA-Z#&*$0-9]*/", $splitted_line[1])) {
-                $order = printInstruction($order, $splitted_line[0]);
-                printArguments($splitted_line[1], 1, true);
-            } else exit(ERROR_LEX_SYNTAX);
+            if (!check_label($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
+            $order = printInstruction($order, $splitted_line[0]);
+            printArguments($splitted_line[1], 1, true);
             // check if is defined?
             break;
         case 'MOVE':
-            // check if is something after
-            // if ($splitted_line[3][0] != '#') {
-            //     echo("sorry broooo\n");
-            //     exit(99);
-            // }
+            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(3, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
-            if (preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*|int@[-+0-9][0-9]*|string@[a-zA-Z][a-zA-Z]*|nil@nil|bool@(true|false)/", $splitted_line[1])) {
-                if (preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*|int@[-+0-9][0-9]*|string@[a-zA-Z][a-zA-Z]*|nil@nil|bool@(true|false)/", $splitted_line[2])) {
-                    // if (!array_search($splitted_line[1], $variables)) exit(ERROR_LEX_SYNTAX);
-                    printArguments($splitted_line[1], 1);
-                    printArguments($splitted_line[2], 2);
-                    // $newstring = substr($splitted_line[2], -3);
-                    // echo("\t\t<arg2 type=\"int\">".$newstring."</arg2>\n");
-                } else exit(ERROR_LEX_SYNTAX);
-            } else exit(ERROR_LEX_SYNTAX);
+            printArguments($splitted_line[1], 1);
+            printArguments($splitted_line[2], 2);
             break;
         case 'PUSHS':
+            if (!check_symb($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
-            if (preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*|int@[-+0-9][0-9]*|string@[a-zA-Z][a-zA-Z]*|nil@nil|bool@(true|false)/", $splitted_line[1])) {
-                printArguments($splitted_line[1], 1);
-
-            } else exit(ERROR_LEX_SYNTAX);
+            printArguments($splitted_line[1], 1);
             break;
         // var symb1 symb2
         case 'ADD':
         case 'SUB':
         case 'MUL':
-            $order = printInstruction($order, $splitted_line[0]);
-            if(preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*/", $splitted_line[1]) && 
-            preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*|int@[-+0-9][0-9]*/", $splitted_line[2])&&
-            preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*|int@[-+0-9][0-9]*/", $splitted_line[3])){
-                printInstruction($splitted_line[1], 1);
-                printInstruction($splitted_line[2], 2);
-                printInstruction($splitted_line[3], 3);
-            } exit(ERROR_LEX_SYNTAX);
-            break;
+            // $order = printInstruction($order, $splitted_line[0]);
+            // if(preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*/", $splitted_line[1]) && 
+            // preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*|int@[-+0-9][0-9]*/", $splitted_line[2])&&
+            // preg_match("/(Lf|GF|TF)@[a-zA-Z#&*$][a-zA-Z#&*$0-9]*|int@[-+0-9][0-9]*/", $splitted_line[3])){
+            //     printInstruction($splitted_line[1], 1);
+            //     printInstruction($splitted_line[2], 2);
+            //     printInstruction($splitted_line[3], 3);
+            // } exit(ERROR_LEX_SYNTAX);
+            // break;
         case 'IDIV':
         case 'LT':
         case 'GT':
@@ -200,35 +184,43 @@ while($line = fgets(STDIN)) {
         case 'NOT':
         case 'CONCAT':
         case 'STRI2INT':
-
         case 'SETCHAR':
         case 'GETCHAR':
+            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[3])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(4, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
             printArguments($splitted_line[2], 2);
+            printArguments($splitted_line[3], 3);
             break;
         //
         case 'TYPE':
         case 'STRLEN':
         case 'INT2CHAR':
+            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
             break;
         case 'READ':
+            // syntax todo
+            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            // if (!check_var($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
+            // if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             for ($i = 1; $i < count($splitted_line); $i++) {
                 printArguments($splitted_line[$i], $i);
             }
             break;
-        case 'JUMPIFEQ':            
-        case 'JUMPIFNEQ': 
-            $order = printInstruction($order, $splitted_line[0]);
-            printArguments($splitted_line[1], 1, true);
-            break;
         //  
         case 'WRITE': // todo
         case 'EXIT':
         case 'DPRINT':
+            if (!check_symb($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
             break;
@@ -237,7 +229,7 @@ while($line = fgets(STDIN)) {
         case 'POPFRAME':
         case 'RETURN':
         case 'BREAK':
-            if($lenght != 1) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(1, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             break;
         case '#':
