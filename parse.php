@@ -14,7 +14,7 @@ define("ERROR_LEX_SYNTAX", 23);
  * print instruction and save instruction order
  */
 function printInstruction($order, $instruction) {
-    echo("\t<instruction order=\"".$order."\" opcode=\"".$instruction."\">\n");
+    echo("\t<instruction order=\"".$order."\" opcode=\"".strtoupper($instruction)."\">\n");
     return $order + 1;
 }
 
@@ -42,8 +42,7 @@ function printArguments($argument, $order, $isLabel=false) {
         case 'string':
             $type = "string";
             $argument = $operation[1];
-            $argument = preg_replace('/</', '&lt;', $argument);
-            $argument = preg_replace('/>/', '&gt;', $argument);
+            
             // $argument = preg_replace('/&/', '&amp', $argument);
             break;
         case 'nil':
@@ -58,18 +57,30 @@ function printArguments($argument, $order, $isLabel=false) {
             break;
         default:
             exit(ERROR_LEX_SYNTAX);
-    }
+        }
+        $argument = preg_replace('/&/', '&amp;', $argument);
+    $argument = preg_replace('/</', '&lt;', $argument);
+    $argument = preg_replace('/>/', '&gt;', $argument);
     echo("\t\t<arg".$order." type=\"".$type."\">$argument</arg".$order.">\n");
 }
 
 function check_var($var) {
-    return preg_match("/(Lf|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*/", $var);
+    return preg_match("/^((LF|GF|TF)@[a-zA-Z$&\-_%*!?][a-zA-Z0-9$&\-_%*!?]*)$/", $var);
 }
 function check_label($label) {
-    return preg_match("/(Lf|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*/", $label);
+    return preg_match("/^([a-zA-Z$&\-_%*!?][a-zA-Z0-9$&\-_%*!?]*)$/", $label);
 }
 function check_symb($symb) {
-    return preg_match("/(Lf|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*|int@[-+0-9][0-9]*|string@[a-zA-Z][a-zA-Z]*|nil@nil|bool@(true|false)/", $symb);
+    return preg_match("/^((LF|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*|int@[-+0-9][0-9]*|string@([ -\"$-\[\]-ž]*[\\000-032]*)*|nil@nil|bool@(true|false))$/", $symb);
+}
+
+function check_header($line, $header) {
+    if (preg_match("/^[\s]*(\.IPPcode23)[\s]*$/", $line)) {
+        if($header) exit(ERROR_OPERATING_CODE);
+        echo("<program language=\"IPPcode23\">\n");
+        return true;
+    } 
+    return false;
 }
 
 function check_arguments_lenght($number_of_arguments, $line) {
@@ -78,52 +89,8 @@ function check_arguments_lenght($number_of_arguments, $line) {
     return $number_of_arguments == $lenght;
 }
 
-// spracovanie parametrov
-if ($argc > 1){
-    if ($argv[1] == "--help") {
-        echo("Skript typu filtr nacita za standartneho vstupu zdrojovy kod v IPPcode23, zkontroluje lexikalnu
-        a syntakticku spravnost kodu a vypise na standartny vystup XML reprezentace programu.\n");
-        exit(SUCCESS);
-    }
-    exit(ERROR_MISSING_PARAMETER);
-} 
- 
-$order = 1;
-$header = false;
 
-$variables = [];
-// $labelList = [];
-
-#### TODO
-/*
-    dakadicky kod v stringu
-    kontrola ci je iba 
-*/
-
-echo("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-while($line = fgets(STDIN)) {
-    // echo($line);
-    $line = preg_replace('/(?<!^)#.*/', '', $line);
-    $line = preg_replace('/\s+/', ' ', $line);
-    
-    $splitted_line = explode(' ', trim($line, "\n")); 
-    if ($splitted_line[0] == '.IPPcode23') {
-        $header = true;
-        echo("<program language=\"IPPcode23\">\n");
-    } 
-    if ($header == false && $splitted_line[0] != '#') {
-        exit(ERROR_MISSING_HEADER); # chybna hlavicka;
-    }
-    // check trim
-    // oddelit komentar strip
-    // echo($splitted_line[0])."\n";
-    // echo count($splitted_line)."\n";
-    
-    #####  ????????
-    
-    // $lenght = count($splitted_line);
-    // $lenght = check_arguments_lenght($splitted_line);
-    // echo $lenght."\n";
+function check_operators($splitted_line, $order) {
     switch(strtoupper($splitted_line[0])) {
         // 1 var
         case 'POPS':
@@ -136,7 +103,6 @@ while($line = fgets(STDIN)) {
             break;
         // label
         case 'LABEL':
-            // array_push($labelList, $splitted_line[1]);
         case 'CALL':
         case 'JUMP':
         case 'JUMPIFEQ':            
@@ -207,19 +173,20 @@ while($line = fgets(STDIN)) {
             break;
         case 'READ':
             // syntax todo
-            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+
+            // if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
             // if (!check_var($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
             // if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             for ($i = 1; $i < count($splitted_line); $i++) {
-                printArguments($splitted_line[$i], $i);
+                if($splitted_line[$i]) printArguments($splitted_line[$i], $i);
             }
             break;
         //  
         case 'WRITE': // todo
         case 'EXIT':
         case 'DPRINT':
-            if (!check_symb($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            // if (!check_symb($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
             if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
@@ -236,11 +203,55 @@ while($line = fgets(STDIN)) {
         case '.IPPCODE23':
             break;
         default:
-            echo "something is wronge ";
-            echo $splitted_line[0];
-            exit(ERROR_OPERATING_CODE);
+            if ($splitted_line[0][0] != '#') exit(ERROR_OPERATING_CODE);
     }
-    if($splitted_line[0] != '.IPPcode23' && $splitted_line[0] != '#') echo("\t</instruction>\n");
+    if($splitted_line[0] != '.IPPcode23' && $splitted_line[0][0] != '#') echo("\t</instruction>\n");
+    return $order;
+}
+
+// spracovanie parametrov
+if ($argc > 1){
+    if ($argv[1] == "--help") {
+        echo("Skript typu filtr nacita za standartneho vstupu zdrojovy kod v IPPcode23, zkontroluje lexikalnu
+        a syntakticku spravnost kodu a vypise na standartny vystup XML reprezentace programu.\n");
+        exit(SUCCESS);
+    }
+    exit(ERROR_MISSING_PARAMETER);
+} 
+ 
+$order = 1;
+$header = false;
+
+$variables = [];
+// $labelList = [];
+
+#### TODO
+/*
+    dakadicky kod v stringu
+    kontrola ci je iba 
+*/
+
+echo("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+while($line = fgets(STDIN)) {
+    // echo($line);
+    $line = preg_replace('/(?<!^)#.*/', '', $line);
+    $line = preg_replace('/\s+/', ' ', $line);
+    
+    // kontrola hlavicky
+    $header = check_header($line, $header);
+
+    $splitted_line = explode(' ', trim($line, "\n")); 
+        
+    if ($splitted_line[0][0] != '#' && $splitted_line[0]) {
+        if ($header == false) {
+            exit(ERROR_MISSING_HEADER); # chybna hlavicka;
+        }
+        // kontrola operatorov
+        $order = check_operators($splitted_line, $order);
+    }
+    
+    // if($operators != SUCCESS) exit($operators);
+
 }
 echo("</program>\n");
 exit(SUCCESS);
