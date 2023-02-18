@@ -73,15 +73,19 @@ function check_label($label) {
 function check_symb($symb) {
     return preg_match("/^((LF|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*|int@[-+0-9][0-9]*|string@([ -\"$-\[\]-ž]*[\\000-032]*)*|nil@nil|bool@(true|false))$/", $symb);
 }
-
-function check_header($line, $header) {
-    if (preg_match("/^[\s]*(\.IPPcode23)[\s]*$/", $line)) {
-        if($header) exit(ERROR_OPERATING_CODE);
-        echo("<program language=\"IPPcode23\">\n");
-        return true;
-    } 
-    return false;
+function check_type($type) {
+    // return preg_match("/^(int(@[-+0-9][0-9]*)*|string(@([ -\"$-\[\]-ž]*[\\000-032]*)*)*|bool(@(true|false)))*$/", $type);
+    return preg_match("/^(int|bool|string)*$/", $type);
 }
+
+// function check_header($line, $header) {
+//     if (preg_match("/^[\s]*(\.IPPcode23)[\s]*$/", $line)) {
+//         if($header) exit(ERROR_OPERATING_CODE);
+//         echo("<program language=\"IPPcode23\">\n");
+//         return true;
+//     } 
+//     return false;
+// }
 
 function check_arguments_lenght($number_of_arguments, $line) {
     $lenght = count($line);
@@ -105,8 +109,6 @@ function check_operators($splitted_line, $order) {
         case 'LABEL':
         case 'CALL':
         case 'JUMP':
-        case 'JUMPIFEQ':            
-        case 'JUMPIFNEQ': 
             // if (!array_search($splitted_line[1], $labelList)) exit(ERROR_LEX_SYNTAX);
             if (!check_label($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
             if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
@@ -123,12 +125,21 @@ function check_operators($splitted_line, $order) {
             printArguments($splitted_line[2], 2);
             break;
         case 'PUSHS':
+        case 'WRITE': 
             if (!check_symb($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
             if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
             break;
         // var symb1 symb2
+        case 'NOT':
+            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(3, $splitted_line)) exit(ERROR_LEX_SYNTAX);
+            $order = printInstruction($order, $splitted_line[0]);
+            printArguments($splitted_line[1], 1);
+            printArguments($splitted_line[2], 2);
+            break;
         case 'ADD':
         case 'SUB':
         case 'MUL':
@@ -147,7 +158,6 @@ function check_operators($splitted_line, $order) {
         case 'EQ':
         case 'AND':
         case 'OR':
-        case 'NOT':
         case 'CONCAT':
         case 'STRI2INT':
         case 'SETCHAR':
@@ -162,31 +172,47 @@ function check_operators($splitted_line, $order) {
             printArguments($splitted_line[3], 3);
             break;
         //
+        case 'JUMPIFEQ':            
+        case 'JUMPIFNEQ': 
+            if (!check_label($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[3])) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(4, $splitted_line)) exit(ERROR_LEX_SYNTAX);
+            $order = printInstruction($order, $splitted_line[0]);
+            printArguments($splitted_line[1], 1, true);
+            printArguments($splitted_line[2], 2);
+            printArguments($splitted_line[3], 3);
+            // check if is defined?
+            break;
         case 'TYPE':
         case 'STRLEN':
         case 'INT2CHAR':
             if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
             if (!check_symb($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
-            if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
+            if (!check_arguments_lenght(3, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
+            printArguments($splitted_line[2], 2);
             break;
         case 'READ':
             // syntax todo
-
-            // if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (count($splitted_line) < 3) exit(ERROR_LEX_SYNTAX);
             // if (!check_var($splitted_line[2])) exit(ERROR_LEX_SYNTAX);
             // if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
-            for ($i = 1; $i < count($splitted_line); $i++) {
-                if($splitted_line[$i]) printArguments($splitted_line[$i], $i);
+            printArguments($splitted_line[1], 1);
+            for ($i = 2; $i < count($splitted_line); $i++) {
+                if(!check_type($splitted_line[$i])) exit(ERROR_LEX_SYNTAX);
+                printArguments($splitted_line[$i], $i);
+                
             }
             break;
         //  
-        case 'WRITE': // todo
+
         case 'EXIT':
         case 'DPRINT':
-            // if (!check_symb($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
+            if (!check_symb($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
             if (!check_arguments_lenght(2, $splitted_line)) exit(ERROR_LEX_SYNTAX);
             $order = printInstruction($order, $splitted_line[0]);
             printArguments($splitted_line[1], 1);
@@ -237,8 +263,12 @@ while($line = fgets(STDIN)) {
     $line = preg_replace('/(?<!^)#.*/', '', $line);
     $line = preg_replace('/\s+/', ' ', $line);
     
-    // kontrola hlavicky
-    $header = check_header($line, $header);
+    // if ($splitted_line[0] == '.IPPcode23') {
+    if (preg_match("/^[\s]*(\.IPPcode23)[\s]*$/", $line)) {
+        if($header) exit(ERROR_OPERATING_CODE);
+        $header = true;
+        echo("<program language=\"IPPcode23\">\n");
+    } 
 
     $splitted_line = explode(' ', trim($line, "\n")); 
         
