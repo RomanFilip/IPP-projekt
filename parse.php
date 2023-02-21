@@ -57,6 +57,8 @@ function printArguments($argument, $order, $isLabel=false) {
         case 'GF':
         case 'LF':
         case 'TF':
+
+            
             $type = "var";
             $argument = $argument;
             break;
@@ -254,5 +256,3 @@ while($line = fgets(STDIN)) {
 }
 echo("</program>\n");
 exit(SUCCESS);
-
-?>
