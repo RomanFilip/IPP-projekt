@@ -71,7 +71,8 @@ function check_label($label) {
     return preg_match("/^([a-zA-Z$&\-_%*!?][a-zA-Z0-9$&\-_%*!?]*)$/", $label);
 }
 function check_symb($symb) {
-    return preg_match("/^((LF|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*|int@[-+0-9][0-9]*|string@([ -\"$-\[\]-ž]*[\\000-032]*)*|nil@nil|bool@(true|false))$/", $symb);
+    return preg_match("/^((LF|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*|int@[-+0-9][0-9]*|string@([ -\"$-\[\]-ž]*([\\][0][0-2][0-9]*|[\\][0][3][0-2]*|[\\][0][3][5]*|[\\][0][9][2]*)*)*|nil@nil|bool@(true|false))$/", $symb);
+    // return preg_match("/^(string@([ -\"$-\[\]-ž]*[\\\\0-9]*)*)$/", $symb);
 }
 function check_type($type) {
     // return preg_match("/^(int(@[-+0-9][0-9]*)*|string(@([ -\"$-\[\]-ž]*[\\000-032]*)*)*|bool(@(true|false)))*$/", $type);
