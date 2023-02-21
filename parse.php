@@ -1,6 +1,14 @@
 <?php
-ini_set('display_errors', 'stderr');
 
+/** @file parse.php
+ * 
+ * Analyzátor kódu v IPPcode23
+ * 
+ * @author Filip Roman (xroman16)
+ */
+
+
+ini_set('display_errors', 'stderr');
 
 define("SUCCESS", 0);
 define("ERROR_MISSING_PARAMETER", 10);
@@ -10,16 +18,15 @@ define("ERROR_MISSING_HEADER", 21);
 define("ERROR_OPERATING_CODE", 22);
 define("ERROR_LEX_SYNTAX", 23);
 
-/**
- * print instruction and save instruction order
- */
+/** výpis inštrukcie */
 function printInstruction($order, $instruction) {
     echo("\t<instruction order=\"".$order."\" opcode=\"".strtoupper($instruction)."\">\n");
     return $order + 1;
 }
 
+/** výpis argumentov inštrukcie */
 function printArguments($argument, $order, $isLabel=false) {
-    if($isLabel) {
+    if($isLabel) { 
         echo("\t\t<arg".$order." type=\"label\">$argument</arg".$order.">\n");
         return;
     }
@@ -62,29 +69,37 @@ function printArguments($argument, $order, $isLabel=false) {
     echo("\t\t<arg".$order." type=\"".$type."\">$argument</arg".$order.">\n");
 }
 
+/** syntaktická kontrola premennej */
 function check_var($var) {
     return preg_match("/^((LF|GF|TF)@[a-zA-Z$&\-_%*!?][a-zA-Z0-9$&\-_%*!?]*)$/", $var);
 }
+
+/** syzntaktická kontrola náveští */
 function check_label($label) {
     return preg_match("/^([a-zA-Z$&\-_%*!?][a-zA-Z0-9$&\-_%*!?]*)$/", $label);
 }
+
+/** syntaktická kontrola konštanty alebo premennej */
 function check_symb($symb) {
     $symb = preg_replace('/[\\\][0-9][0-9][0-9]/', '', $symb);
     return preg_match("/^((LF|GF|TF)@[a-zA-Z0-9$&\-_%*!?]*|int@[-+0-9][0-9]*|string@[ -\"$-\[\]-ž]*|nil@nil|bool@(true|false))$/", $symb);
 }
+
+//** syntaktická kontrola typu */
 function check_type($type) {
     return preg_match("/^(int|bool|string)*$/", $type);
 }
 
+/** kontrola dĺžku argumentu */
 function check_arguments_lenght($number_of_arguments, $line) {
     $lenght = count($line);
     if (!$line[$lenght-1]) $lenght--;
     return $number_of_arguments == $lenght;
 }
 
+//** syntaktická a lexikálna kontrola operátorov */
 function check_operators($splitted_line, $order) {
     switch(strtoupper($splitted_line[0])) {
-        // 1 var
         case 'POPS':
         case 'DEFVAR':
             if (!check_var($splitted_line[1])) exit(ERROR_LEX_SYNTAX);
@@ -173,8 +188,7 @@ function check_operators($splitted_line, $order) {
             printArguments($splitted_line[1], 1);
             for ($i = 2; $i < count($splitted_line); $i++) {
                 if(!check_type($splitted_line[$i])) exit(ERROR_LEX_SYNTAX);
-                if($splitted_line[$i]) printArguments($splitted_line[$i], $i);
-                
+                if($splitted_line[$i]) printArguments($splitted_line[$i], $i);   
             }
             break;
         case 'EXIT':
@@ -212,7 +226,7 @@ if ($argc > 1){
     exit(ERROR_MISSING_PARAMETER);
 } 
  
-$order = 1;
+$order = 1; // poradie inštrukcií
 $header = false;
 echo("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 
@@ -220,6 +234,7 @@ while($line = fgets(STDIN)) {
     $line = preg_replace('/(?<!^)#.*/', '', $line);
     $line = preg_replace('/\s+/', ' ', $line);
     
+    /** kontrola hlavičky */
     if (preg_match("/^[\s]*(\.IPPcode23)[\s]*$/", $line)) {
         if($header) exit(ERROR_OPERATING_CODE);
         $header = true;
@@ -227,11 +242,11 @@ while($line = fgets(STDIN)) {
     } 
 
     $splitted_line = explode(' ', trim($line, "\n")); 
-        
     if ($splitted_line[0][0] != '#' && $splitted_line[0]) {
         if ($header == false) {
             exit(ERROR_MISSING_HEADER); # chybna hlavicka;
         }
+
         // kontrola operatorov
         $order = check_operators($splitted_line, $order);
     }
