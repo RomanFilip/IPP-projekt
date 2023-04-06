@@ -28,49 +28,58 @@ class instruction:
 
 
 # parsovanie argumentov - argparse kniznica
-ap = argparse.ArgumentParser()
-ap.add_argument("--source", nars=1, help="Usage: ")
-ap.add_argument("--input", nars=1, help="Usage: ")
+parser = argparse.ArgumentParser()
+parser.add_argument("--source", type=str, nargs=1, help="Usage: ")
+parser.add_argument("--input", type=str, nargs=1, help="Usage: ")
 
-args = vars(ap.parse_args())
+args = parser.parse_args()
+input_file = args.input
+source_file = args.source[0]
 
-
+if source_file is None:
+    # read from stdin
+    pass
 
 # load xml - xml ElementTree
 # sort, prečítať, uložiť lable
-
 ''' reading from file '''
-for f in fileinput.input():
-    print(f)
 
-tree = ET.parse(sourceFile) # add input
+tree = ET.parse(source_file) # add input
 
 root = tree.getroot()
 
-
-#  check xml 
+# missing root tag
 if root.tag != 'program':
-    exit(1)
+    exit(52) 
 
-# check childs
 for child in root:
-    if child.tag != 'instrukce':
-        exit(1)
-    child_arguments = list(child.attrib.keys)
-    if not('order' in child_arguments) or not ('opcode' in child_arguments):
-        exit(1)
-    for subelem in child:
-        # kontrola, regex
-        if not(re.match(r"arg[123]", subelem.tag)):
-            exit(1)
+    print(child.tag, child.attrib)
 
-# xml to instruction
-for e in root:
-    # class, global var na generovanie instrukcie
-    for subelem in e:
-        instruction.add_argument(arg_type, value)
+# #  check xml 
+# if root.tag != 'program':
+#     exit(1)
 
-for i in instructions:
-    interpret(i)
+# # check childs
+# for child in root:
+#     if child.tag != 'instrukce':
+#         exit(1)
+#     child_arguments = list(child.attrib.keys)
+#     if not('order' in child_arguments) or not ('opcode' in child_arguments):
+#         exit(1)
+#     for subelem in child:
+#         # kontrola, regex
+#         if not(re.match(r"arg[123]", subelem.tag)):
+#             exit(1)
 
-# interpret
+# # xml to instruction
+# for e in root:
+#     # class, global var na generovanie instrukcie
+#     for subelem in e:
+#         instruction.add_argument(arg_type, value)
+
+# for i in instructions:
+#     interpret(i)
+
+# # interpret
+
+# # f.close()
