@@ -37,6 +37,26 @@ class Instruction:
         for arg in self.args:
             arg.get_argument()
 
+    def find_var(self, position):
+        value = self.args[position].value.split("@")
+        if value[0] == "GF":
+            for variable in global_frame:
+                if variable.get_variable_name() == value[1]:
+                    return variable
+            return -1
+        elif value[0] == "LF":
+            for variable in global_frame:
+                if variable.get_variable_name() == value[1]:
+                    return variable
+            return -1
+        elif value[0] == "TF":
+            for variable in global_frame:
+                if variable.get_variable_name() == value[1]:
+                    return variable
+            return -1
+        else:
+            exit(52)
+
         
 class Variable:
 
@@ -104,7 +124,6 @@ class Defvar(Instruction):
             exit(52)
 
         
-
 class Move(Instruction):
     def __init__(self, number):
         super().__init__("MOVE", number)
@@ -113,19 +132,8 @@ class Move(Instruction):
         pass
     
     def execute(self):
-        value = self.args[0].value.split("@")
-        if value[0] == "GF":
-            for variable in global_frame:
-                if variable.get_variable_name() == value[1]:
-                    variable.update_variable(self.args[1].arg_type, self.args[1].value)      
-        if value[0] == "LF":
-            for variable in local_frame:
-                if variable.get_variable_name() == value[1]:
-                    variable.update_variable(self.args[1].arg_type, self.args[1].value)      
-        if value[0] == "TF":
-            for variable in local_frame:
-                if variable.get_variable_name() == value[1]:
-                    variable.update_variable(self.args[1].arg_type, self.args[1].value)      
+        var = self.find_var(0)                    
+        var.update_variable(self.args[1].arg_type, self.args[1].value)      
 
 class Add(Instruction):
     def __init__(self, number):
@@ -139,32 +147,28 @@ class Add(Instruction):
         if self.args[1].arg_type == "int":
             symb1 = int(self.args[1].value)
         elif self.args[1].arg_type == "var":
-            value = self.args[1].value.split("@")
-            if value[0] == "GF":
-                for variable in global_frame:
-                    if variable.get_name() == value[1]:
-                        symb1 = variable.get_variable_value()
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1 = var.get_variable_value()
         else:
             exit(52)
 
         if self.args[2].arg_type == "int":
             symb2 = int(self.args[2].value)
         elif self.args[2].arg_type == "var":
-            value = self.args[2].value.split("@")
-            if value[0] == "GF":
-                for variable in global_frame:
-                    if variable.get_variable_name() == value[1]:
-                        symb2 = variable.get_variable_value()
+            var = self.find_var(2)
+            if var == -1: exit(56)
+            symb2 = var.get_variable_value()
         else:
             exit(52)
 
         result = int(symb1) + int(symb2)
+        
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        if var == -1: exit(56)
+        symb2 = var.update_variable("int", result)
 
-        value = self.args[0].value.split("@")
-        for variable in global_frame:
-            if variable.get_variable_name() == value[1]:
-                symb2 = variable.update_variable("int", str(result))
-            
 class Sub(Instruction):
     def __init__(self, number):
         super().__init__("SUB", number)
@@ -176,31 +180,26 @@ class Sub(Instruction):
         if self.args[1].arg_type == "int":
             symb1 = int(self.args[1].value)
         elif self.args[1].arg_type == "var":
-            value = self.args[1].value.split("@")
-            if value[0] == "GF":
-                for variable in global_frame:
-                    if variable.get_variable_name() == value[1]:
-                        symb1 = variable.get_variable_value()
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1 = var.get_variable_value()
         else:
             exit(52)
 
         if self.args[2].arg_type == "int":
             symb2 = int(self.args[2].value)
         elif self.args[2].arg_type == "var":
-            value = self.args[2].value.split("@")
-            if value[0] == "GF":
-                for variable in global_frame:
-                    if variable.get_variable_name() == value[1]:
-                        symb2 = variable.get_variable_value()
+            var = self.find_var(2)
+            if var == -1: exit(56)
+            symb2 = var.get_variable_value()
         else:
             exit(52)
 
         result = int(symb1) - int(symb2)
         
-        value = self.args[0].value.split("@")
-        for variable in global_frame:
-            if variable.get_variable_name() == value[1]:
-                symb2 = variable.update_variable("int", str(result))
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        symb2 = var.update_variable("int", result)
 
 class Write(Instruction):
     def __init__(self, number):
@@ -210,10 +209,9 @@ class Write(Instruction):
         print("syntax analyzator")
     
     def execute(self):
-        value = self.args[0].value.split("@")
-        for variable in global_frame:
-            if variable.get_variable_name() == value[1]:
-                print(variable.get_variable_value())
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        print(var.get_variable_value())
 
 ''' list of instruction '''
 instructions = []
