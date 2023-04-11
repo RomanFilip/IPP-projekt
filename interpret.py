@@ -8,8 +8,6 @@ import argparse
 from sys import stderr
 import xml.etree.ElementTree as ET
 
-# stderr.write("example of stderr\n")
-# exit(0)
 temporary_frame = []
 local_frame = []
 global_frame = []
@@ -151,7 +149,7 @@ class Add(Instruction):
             if var == -1: exit(56)
             symb1 = var.get_variable_value()
         else:
-            exit(52)
+            exit(53)
 
         if self.args[2].arg_type == "int":
             symb2 = int(self.args[2].value)
@@ -160,12 +158,11 @@ class Add(Instruction):
             if var == -1: exit(56)
             symb2 = var.get_variable_value()
         else:
-            exit(52)
+            exit(53)
 
         result = int(symb1) + int(symb2)
         
         var = self.find_var(0)
-        if var == -1: exit(56)
         if var == -1: exit(56)
         symb2 = var.update_variable("int", result)
 
@@ -174,7 +171,8 @@ class Sub(Instruction):
         super().__init__("SUB", number)
 
     def check_instr(self):
-        print("syntax analyzator")
+        if (len(self.args) > 3):
+            exit(52)
     
     def execute(self):
         if self.args[1].arg_type == "int":
@@ -184,7 +182,7 @@ class Sub(Instruction):
             if var == -1: exit(56)
             symb1 = var.get_variable_value()
         else:
-            exit(52)
+            exit(53)
 
         if self.args[2].arg_type == "int":
             symb2 = int(self.args[2].value)
@@ -193,13 +191,82 @@ class Sub(Instruction):
             if var == -1: exit(56)
             symb2 = var.get_variable_value()
         else:
-            exit(52)
+            exit(53)
 
         result = int(symb1) - int(symb2)
         
         var = self.find_var(0)
         if var == -1: exit(56)
         symb2 = var.update_variable("int", result)
+
+class Mul(Instruction):
+    def __init__(self, number):
+        super().__init__("MUL", number)
+
+    def check_instr(self):
+        if (len(self.args) > 3):
+            exit(52)
+
+    def execute(self):
+        if self.args[1].arg_type == "int":
+            symb1 = int(self.args[1].value)
+        elif self.args[1].arg_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1 = var.get_variable_value()
+        else:
+            exit(53)
+
+        if self.args[2].arg_type == "int":
+            symb2 = int(self.args[2].value)
+        elif self.args[2].arg_type == "var":
+            var = self.find_var(2)
+            if var == -1: exit(56)
+            symb2 = var.get_variable_value()
+        else:
+            exit(53)
+
+        result = int(symb1) * int(symb2)
+        
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        symb2 = var.update_variable("int", result)
+
+class Idiv(Instruction):
+    def __init__(self, number):
+        super().__init__("IDIV", number)
+
+    def check_instr(self):
+        if (len(self.args) > 3):
+            exit(52)
+
+    def execute(self):
+        if self.args[1].arg_type == "int":
+            symb1 = int(self.args[1].value)
+        elif self.args[1].arg_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1 = var.get_variable_value()
+        else:
+            exit(53)
+
+        if self.args[2].arg_type == "int":
+            symb2 = int(self.args[2].value)
+        elif self.args[2].arg_type == "var":
+            var = self.find_var(2)
+            if var == -1: exit(56)
+            symb2 = var.get_variable_value()
+        else:
+            exit(53)
+
+        if symb2 == "0":
+            exit(57)
+        result = int(symb1) // int(symb2)
+        
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        symb2 = var.update_variable("int", result)
+
 
 class Write(Instruction):
     def __init__(self, number):
@@ -211,7 +278,12 @@ class Write(Instruction):
     def execute(self):
         var = self.find_var(0)
         if var == -1: exit(56)
-        print(var.get_variable_value())
+
+        result = var.get_variable_value()
+        if result == "nil":
+            result = ""
+
+        print(result)
 
 ''' list of instruction '''
 instructions = []
@@ -233,9 +305,7 @@ if source_file is None:
 # sort, prečítať, uložiť lable
 ''' reading from file '''
 tree = ET.parse(source_file) # add input
-
 root = tree.getroot()
-
 
 '''check xml''' 
 # missing root tag
@@ -248,31 +318,20 @@ for child in root:
         stderr.write("missing instruction\n")
         exit(52)
 
-    # child_arguments = list(child.attrib.keys)
-    # print("arguments", child.attrib.keys)
-
     if child.attrib["opcode"].upper() == "DEFVAR":
-        # print(instr_arg.tag, instr_arg.attrib, child.find(instr_arg.tag).text)
-        print("___DEFVAR")
         instructions.append(Defvar(1))
-        # instructions[int(child.attrib["order"])-1].get_arguments()
     elif child.attrib["opcode"].upper() == "MOVE":
-        print("___MOVE")
         instructions.append(Move(2))
-        # instructions[int(child.attrib["order"])-1].get_arguments()
-
     elif child.attrib["opcode"].upper() == "ADD":
-        print("___Add")
         instructions.append(Add(3))
-        # instructions[int(child.attrib["order"])-1].get_arguments()
     elif child.attrib["opcode"].upper() == "SUB":
-        print("___Sub")
         instructions.append(Sub(3))
-        # instructions[int(child.attrib["order"])-1].get_arguments()
+    elif child.attrib["opcode"].upper() == "MUL":
+        instructions.append(Mul(3))
+    elif child.attrib["opcode"].upper() == "IDIV":
+        instructions.append(Idiv(3))        
     elif child.attrib["opcode"].upper() == "WRITE":
-        print("___Write")
-        instructions.append(Write(1))
-        # instructions[int(child.attrib["order"])-1].get_arguments()
+        instructions.append(Write(1))    
     else:
         stderr.write("wrong opcode\n")
         exit(53)
@@ -286,7 +345,6 @@ for child in root:
         if not(re.match(r"arg[123]", instr_arg.tag)):
             exit(52)
 
-
         # add arguments to instruction        
         instructions[int(child.attrib["order"])-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], child.find(instr_arg.tag).text)
 
@@ -296,18 +354,3 @@ for instr in instructions:
     print(type(instr))
     instr.check_instr()
     instr.execute()
-# print("-------------------")
-# print(global_frame[1].get_variable())
-
-# # check childs
-# for child in root:
-#     if child.tag != 'instrukce':
-#         exit(1)
-#     child_arguments = list(child.attrib.keys)
-#     if not('order' in child_arguments) or not ('opcode' in child_arguments):
-#         exit(1)
-#     for subelem in child:
-#         # kontrola, regex
-#         if not(re.match(r"arg[123]", subelem.tag)):
-#             exit(1)
-
