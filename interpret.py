@@ -84,7 +84,6 @@ class Variable:
         self.var_type = var_type
         self.value = value
 
-
 class Defvar(Instruction):
     def __init__(self, number):
         super().__init__("DEFVAR", number)
@@ -147,7 +146,7 @@ class Add(Instruction):
 
     def execute(self):
         if self.args[1].arg_type == "int":
-            symb1 = int(self.args[1].value)
+            symb1 = self.args[1].value
         elif self.args[1].arg_type == "var":
             var = self.find_var(1)
             if var == -1: exit(56)
@@ -156,7 +155,7 @@ class Add(Instruction):
             exit(53)
 
         if self.args[2].arg_type == "int":
-            symb2 = int(self.args[2].value)
+            symb2 = self.args[2].value
         elif self.args[2].arg_type == "var":
             var = self.find_var(2)
             if var == -1: exit(56)
@@ -168,7 +167,7 @@ class Add(Instruction):
         
         var = self.find_var(0)
         if var == -1: exit(56)
-        symb2 = var.update_variable("int", result)
+        var.update_variable("int", result)
 
 class Sub(Instruction):
     def __init__(self, number):
@@ -201,7 +200,7 @@ class Sub(Instruction):
         
         var = self.find_var(0)
         if var == -1: exit(56)
-        symb2 = var.update_variable("int", result)
+        var.update_variable("int", result)
 
 class Mul(Instruction):
     def __init__(self, number):
@@ -234,7 +233,7 @@ class Mul(Instruction):
         
         var = self.find_var(0)
         if var == -1: exit(56)
-        symb2 = var.update_variable("int", result)
+        var.update_variable("int", result)
 
 class Idiv(Instruction):
     def __init__(self, number):
@@ -269,8 +268,9 @@ class Idiv(Instruction):
         
         var = self.find_var(0)
         if var == -1: exit(56)
-        symb2 = var.update_variable("int", result)
-class RelationalOperatos(Instruction):
+        var.update_variable("int", result)
+
+class RelationalOperators(Instruction):
     def __init__(self, opcode, number):
         super().__init__(opcode, number)
 
@@ -300,24 +300,171 @@ class RelationalOperatos(Instruction):
             symb2 = var.get_variable_value()
             symb2_type = var.get_variable_type()
         else:
-            symb2 = self.args[2].arg_type
+            symb2 = self.args[2].value
             symb2_type = self.args[2].arg_type
 
         # check type compatibility
         if symb1_type != symb2_type:
             exit(53)
 
-        if self.opcode == "LT":
+        if self.name == "LT":
             result = symb1 < symb2
-        if self.opcode == "GT":
+        if self.name == "GT":
             result = symb1 > symb2
-        if self.opcode == "EQ":
+        if self.name == "EQ":
             result = symb1 == symb2
         
         # save result
         var = self.find_var(0)
         if var == -1: exit(56)
-        symb2 = var.update_variable('bool', result)
+        var.update_variable('bool', result)
+class BooleanOperators(Instruction):
+    def __init__(self, opcode, number):
+        super().__init__(opcode, number)
+
+    def check_instr(self):
+        if (len(self.args) > 3):
+            exit(52)
+
+    def execute(self):
+        # get type of symbol adn value
+        symb1_type = self.args[1].arg_type
+        if  symb1_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1_type = var.get_variable_type()
+            symb1 = var.get_variable_value()
+        
+        if symb1_type == "bool":
+            symb1 = self.args[1].value
+        else: 
+            exit(53)
+        
+        symb2_type = self.args[2].arg_type
+        if  symb2_type == "var":
+            var = self.find_var(2)
+            if var == -1: exit(56)
+            symb2_type = var.get_variable_type()
+            symb2 = var.get_variable_value()
+        
+        if symb2_type == "bool":
+            symb2 = self.args[2].value
+        else: 
+            exit(53)
+
+        if self.opcode == "AND":
+            result = symb1 and symb2
+        elif self.opcode == "OR":
+            result = symb1 or symb2
+
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        var.update_variable('bool', result)
+
+class Not(Instruction):
+    def __init__(self, number):
+        super().__init__("NOT", number)
+
+    def check_instr(self):
+        if (len(self.args) > 2):
+            exit(52)
+
+    def execute(self):
+        # get type of symbol adn value
+        symb1_type = self.args[1].arg_type
+        if symb1_type == "bool":
+            symb1 = self.args[1].value
+        elif symb1_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1_type = var.get_variable_type()
+            symb1 = var.get_variable_value()
+
+        if symb1_type != "bool":
+            exit(53)
+
+        result = not symb1
+        
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        var.update_variable('bool', result)
+class Int2Char(Instruction):
+    def __init__(self, number):
+        super().__init__("INT2CHAR", number)
+
+    def check_instr(self):
+        if (len(self.args) > 2):
+            exit(52)
+
+    def execute(self):
+        # get type of symbol adn value
+        symb1_type = self.args[1].arg_type
+        if symb1_type == "int":
+            symb1 = self.args[1].value
+        elif  symb1_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1_type = var.get_variable_type()
+            if symb1_type != "int": exit(53)
+            symb1 = var.get_variable_value()
+        else:
+            exit(53)
+        
+        if symb1 < 0 and symb1 > 1114111:
+            exit(58)
+
+        result = chr(symb1)
+        
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        var.update_variable('string', result)
+class StrI2Int(Instruction):
+    def __init__(self, number):
+        super().__init__("STRI2INT", number)
+
+    def check_instr(self):
+        if (len(self.args) > 3):
+            exit(52)
+
+    def execute(self):
+        # get type of symbol adn value
+        symb1_type = self.args[1].arg_type
+        if symb1_type == "string":
+            symb1 = self.args[1].value
+        elif  symb1_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1_type = var.get_variable_type()
+            if symb1_type != "string": exit(53)
+            symb1 = var.get_variable_value()
+        else:
+            exit(53)
+        
+        symb2_type = self.args[2].arg_type
+        if symb2_type == "int":
+            symb2 = int(self.args[2].value)
+        elif  symb2_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb2_type = var.get_variable_type()
+            if symb2_type != "int": exit(53)
+            symb2 = int(var.get_variable_value())
+        else:
+            exit(53)
+        
+        lenght = len(symb1)
+        if symb2 > lenght:
+            exit(58)
+
+        result = ord(symb1[symb2])
+        
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        var.update_variable('string', result)
 
 
 class Write(Instruction):
@@ -386,7 +533,11 @@ for child in root:
     elif instruction_opcode == "WRITE":
         instructions.append(Write(1))    
     elif instruction_opcode == "LT" or instruction_opcode == "GT" or instruction_opcode == "EQ":
-        instructions.append(RelationalOperatos(instruction_opcode, 3))
+        instructions.append(RelationalOperators(instruction_opcode, 3))
+    elif instruction_opcode == "AND" or instruction_opcode == "OR":
+        instructions.append(BooleanOperators(instruction_opcode, 3))
+    elif instruction_opcode == "NOT":
+        instructions.append(Not(2))
     else:
         stderr.write("wrong opcode\n")
         exit(53)
