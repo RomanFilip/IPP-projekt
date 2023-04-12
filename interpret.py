@@ -71,6 +71,9 @@ class Variable:
     def get_variable(self):
         print(self.frame, self.var_type, self.name, self.value)
 
+    def get_variable_type(self):
+        return self.var_type
+
     def get_variable_name(self):
         return self.name
     
@@ -130,7 +133,8 @@ class Move(Instruction):
         pass
     
     def execute(self):
-        var = self.find_var(0)                    
+        var = self.find_var(0)  
+        if var == -1: exit(56)         
         var.update_variable(self.args[1].arg_type, self.args[1].value)      
 
 class Add(Instruction):
@@ -266,6 +270,54 @@ class Idiv(Instruction):
         var = self.find_var(0)
         if var == -1: exit(56)
         symb2 = var.update_variable("int", result)
+class RelationalOperatos(Instruction):
+    def __init__(self, opcode, number):
+        super().__init__(opcode, number)
+
+    def check_instr(self):
+        if (len(self.args) > 3):
+            exit(52)
+
+    def execute(self):
+        # get type of symbol adn value
+        if self.args[1].arg_type == "var":
+            var = self.find_var(1)
+            if var == -1: exit(56)
+            symb1_type = var.get_variable_type()
+            symb1 = var.get_variable_value()
+        else:
+            symb1_type = self.args[1].arg_type
+            symb1 = self.args[1].value
+
+        # check supported types
+        if not(re.match(r"int|bool|string", symb1_type)):
+            exit(53)
+
+        # get type of symbol and value
+        if self.args[2].arg_type == "var":
+            var = self.find_var(2)
+            if var == -1: exit(56)
+            symb2 = var.get_variable_value()
+            symb2_type = var.get_variable_type()
+        else:
+            symb2 = self.args[2].arg_type
+            symb2_type = self.args[2].arg_type
+
+        # check type compatibility
+        if symb1_type != symb2_type:
+            exit(53)
+
+        if self.opcode == "LT":
+            result = symb1 < symb2
+        if self.opcode == "GT":
+            result = symb1 > symb2
+        if self.opcode == "EQ":
+            result = symb1 == symb2
+        
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        symb2 = var.update_variable('bool', result)
 
 
 class Write(Instruction):
@@ -318,20 +370,23 @@ for child in root:
         stderr.write("missing instruction\n")
         exit(52)
 
-    if child.attrib["opcode"].upper() == "DEFVAR":
+    instruction_opcode = child.attrib["opcode"].upper()
+    if instruction_opcode == "DEFVAR":
         instructions.append(Defvar(1))
-    elif child.attrib["opcode"].upper() == "MOVE":
+    elif instruction_opcode == "MOVE":
         instructions.append(Move(2))
-    elif child.attrib["opcode"].upper() == "ADD":
+    elif instruction_opcode == "ADD":
         instructions.append(Add(3))
-    elif child.attrib["opcode"].upper() == "SUB":
+    elif instruction_opcode == "SUB":
         instructions.append(Sub(3))
-    elif child.attrib["opcode"].upper() == "MUL":
+    elif instruction_opcode == "MUL":
         instructions.append(Mul(3))
-    elif child.attrib["opcode"].upper() == "IDIV":
+    elif instruction_opcode == "IDIV":
         instructions.append(Idiv(3))        
-    elif child.attrib["opcode"].upper() == "WRITE":
+    elif instruction_opcode == "WRITE":
         instructions.append(Write(1))    
+    elif instruction_opcode == "LT" or instruction_opcode == "GT" or instruction_opcode == "EQ":
+        instructions.append(RelationalOperatos(instruction_opcode, 3))
     else:
         stderr.write("wrong opcode\n")
         exit(53)
