@@ -56,6 +56,18 @@ class Instruction:
         else:
             stderr.write("frame not found\n")
             exit(52)
+
+    def get_symb(self, number_of_argument):
+        if self.args[number_of_argument].arg_type == "var": # is variable
+            var = self.find_var(number_of_argument)
+            if var == -1: exit(56)
+            symb_type = var.get_variable_type()
+            symb = var.get_variable_value()
+        else:                               # is constant
+            symb_type = self.args[number_of_argument].arg_type
+            symb = self.args[number_of_argument].value
+        return (str(symb), symb_type)
+
         
 class Variable:
 
@@ -147,27 +159,18 @@ class ArithmeticOperations(Instruction):
             exit(52)
 
     def execute(self):
-        if self.args[1].arg_type == "int":
-            symb1 = self.args[1].value
-        elif self.args[1].arg_type == "var":
-            var = self.find_var(1)
-            if var == -1: exit(56)
-            symb1 = var.get_variable_value()
-        else:
-            exit(53)
+        symb1, symb1_type = self.get_symb(1)
         if not(re.match(r"^[-0-9]+$", symb1)):
             exit(32)
+        if symb1_type != "int":
+            exit(52)
 
-        if self.args[2].arg_type == "int":
-            symb2 = self.args[2].value
-        elif self.args[2].arg_type == "var":
-            var = self.find_var(2)
-            if var == -1: exit(56)
-            symb2 = var.get_variable_value()
-        else:
-            exit(53)
+        symb2, symb2_type = self.get_symb(2)
+
         if not(re.match(r"^[-0-9]+$", symb2)):
             exit(32)
+        if symb2_type != "int":
+            exit(52)
 
         if self.name == "ADD":
             result = int(symb1) + int(symb2)
@@ -194,28 +197,14 @@ class RelationalOperators(Instruction):
 
     def execute(self):
         # get type of symbol adn value
-        if self.args[1].arg_type == "var":
-            var = self.find_var(1)
-            if var == -1: exit(56)
-            symb1_type = var.get_variable_type()
-            symb1 = var.get_variable_value()
-        else:
-            symb1_type = self.args[1].arg_type
-            symb1 = self.args[1].value
-
+        symb1, symb1_type = self.get_symb(1)
         # check supported types
         if not(re.match(r"int|bool|string", symb1_type)):
             exit(53)
 
         # get type of symbol and value
-        if self.args[2].arg_type == "var":
-            var = self.find_var(2)
-            if var == -1: exit(56)
-            symb2 = var.get_variable_value()
-            symb2_type = var.get_variable_type()
-        else:
-            symb2 = self.args[2].value
-            symb2_type = self.args[2].arg_type
+        symb2, symb2_type = self.get_symb(2)
+
 
         # check type compatibility
         if symb1_type != symb2_type:
@@ -242,28 +231,20 @@ class BooleanOperators(Instruction):
 
     def execute(self):
         # get type of symbol adn value
-        symb1_type = self.args[1].arg_type
-        if  symb1_type == "var":
-            var = self.find_var(1)
-            if var == -1: exit(56)
-            symb1_type = var.get_variable_type()
-            symb1 = var.get_variable_value()
-        
-        if symb1_type == "bool":
-            symb1 = self.args[1].value
-        else: 
+         # get type of symbol adn value
+        symb1, symb1_type = self.get_symb(1)
+        # check supported types
+        if not(re.match(r"bool", symb1_type)):
+            exit(53)
+        if not(re.match(r"true|false", symb1)):
             exit(53)
         
-        symb2_type = self.args[2].arg_type
-        if  symb2_type == "var":
-            var = self.find_var(2)
-            if var == -1: exit(56)
-            symb2_type = var.get_variable_type()
-            symb2 = var.get_variable_value()
-        
-        if symb2_type == "bool":
-            symb2 = self.args[2].value
-        else: 
+        # get type of symbol adn value
+        symb2, symb2_type = self.get_symb(2)
+        # check supported types
+        if not(re.match(r"bool", symb2_type)):
+            exit(53)
+        if not(re.match(r"true|false", symb2)):
             exit(53)
 
         if self.opcode == "AND":
@@ -286,15 +267,7 @@ class Not(Instruction):
 
     def execute(self):
         # get type of symbol adn value
-        symb1_type = self.args[1].arg_type
-        if symb1_type == "bool":
-            symb1 = self.args[1].value
-        elif symb1_type == "var":
-            var = self.find_var(1)
-            if var == -1: exit(56)
-            symb1_type = var.get_variable_type()
-            symb1 = var.get_variable_value()
-
+        symb1, symb1_type = self.get_symb(1)
         if symb1_type != "bool":
             exit(53)
 
@@ -314,17 +287,9 @@ class Int2Char(Instruction):
 
     def execute(self):
         # get type of symbol adn value
-        symb1_type = self.args[1].arg_type
-        if symb1_type == "int":
-            symb1 = self.args[1].value
-        elif  symb1_type == "var":
-            var = self.find_var(1)
-            if var == -1: exit(56)
-            symb1_type = var.get_variable_type()
-            if symb1_type != "int": exit(53)
-            symb1 = var.get_variable_value()
-        else:
-            exit(53)
+        symb1, symb1_type = self.get_symb(1)
+        if symb1_type != "int":
+            exit(52)    
         
         if symb1 < 0 and symb1 > 1114111:
             exit(58)
@@ -345,29 +310,13 @@ class StrI2Int(Instruction):
 
     def execute(self):
         # get type of symbol adn value
-        symb1_type = self.args[1].arg_type
-        if symb1_type == "string":
-            symb1 = self.args[1].value
-        elif  symb1_type == "var":
-            var = self.find_var(1)
-            if var == -1: exit(56)
-            symb1_type = var.get_variable_type()
-            if symb1_type != "string": exit(53)
-            symb1 = var.get_variable_value()
-        else:
-            exit(53)
+        symb1, symb1_type = self.get_symb(1)
+        if symb1_type != "string":
+            exit(52)
         
-        symb2_type = self.args[2].arg_type
-        if symb2_type == "int":
-            symb2 = int(self.args[2].value)
-        elif  symb2_type == "var":
-            var = self.find_var(1)
-            if var == -1: exit(56)
-            symb2_type = var.get_variable_type()
-            if symb2_type != "int": exit(53)
-            symb2 = int(var.get_variable_value())
-        else:
-            exit(53)
+        symb2, symb2_type = self.get_symb(2)
+        if symb2_type != "int":
+            exit(52)
         
         lenght = len(symb1)
         if symb2 > lenght:
@@ -430,9 +379,200 @@ class Read(Instruction):
         if var == -1: exit(56)
         var.update_variable(arg_type, value)
 
+class Concat(Instruction):
+    def __init__(self, number):
+        super().__init__("CONCAT", number)
 
+    def check_instr(self):
+        if (len(self.args) != 3):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+         # get type of symbol adn value
+        symb1, symb1_type = self.get_symb(1)
+
+        # check supported types
+        if not(re.match(r"string", symb1_type)):
+            exit(53)
+
+        # get type of symbol and value
+        symb2, symb2_type = self.get_symb(2)
+
+        # check supported types
+        if not(re.match(r"string", symb1_type)):
+            exit(53)
         
+        result = symb1 + symb2
+        
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        var.update_variable('string', result)
 
+class Strlen(Instruction):
+    def __init__(self, number):
+        super().__init__("STRLEN", number)
+
+    def check_instr(self):
+        if (len(self.args) != 2):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+         # get type of symbol adn value
+        symb1, symb1_type = self.get_symb(1)
+
+        # check supported types
+        if not(re.match(r"string", symb1_type)):
+            exit(53)
+
+        result = len(symb1)
+
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        var.update_variable('int', result)
+
+class Getchar(Instruction):
+    def __init__(self, number):
+        super().__init__("GETCHAR", number)
+
+    def check_instr(self):
+        if (len(self.args) != 3):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+         # get type of symbol adn value
+        symb1, symb1_type = self.get_symb(1)
+
+        # check supported types
+        if not(re.match(r"string", symb1_type)):
+            exit(53)
+
+        # get type of symbol and value
+        symb2, symb2_type = self.get_symb(2)
+
+        # check type compatibility
+        if not(re.match(r"int", symb2_type)):
+            exit(53)
+        if not(re.match(r"^[-0-9]+$", symb2)):
+            exit(53)
+        
+        if len(symb1) > symb2 or symb2 < 0:
+            exit(58)
+            
+        result = symb1[symb2]
+        
+        # save result
+        var = self.find_var(0)
+        if var == -1: exit(56)
+        var.update_variable('string', result)
+        
+class Setchar(Instruction):
+    def __init__(self, number):
+        super().__init__("SETCHAR", number)
+
+    def check_instr(self):
+        if (len(self.args) != 3):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+        # get type of symbol and value
+        symb1, symb1_type = self.get_symb(1)
+
+        # check type compatibility
+        if not(re.match(r"int", symb1_type)):
+            exit(53)
+        if not(re.match(r"^[-0-9]+$", symb1)):
+            exit(53)
+
+        # if len(symb1) > symb1 or symb1 < 0:
+        #     exit(58)
+         # get type of symbol adn value
+
+        symb2, symb2_type = self.get_symb(2)
+        # check supported types
+        if not(re.match(r"string", symb2_type)):
+            exit(53)
+
+        length = len(symb2)
+        if length == 0:
+            exit(58)
+        if length > 1:
+            symb2 = symb2[0]
+        
+        var, var_type = self.get_symb(0)
+        if not(re.match(r"string", var_type)):
+            exit(53)
+
+        var = self.find_var(0)
+        if var == -1: exit(56)
+
+        if var.get_type() != "string":
+            exit(53)
+
+        var_value = var.get_variable_value()
+        if (len(var_value) > symb1) or (symb1 < 0):
+            exit(58)
+
+        result = var_value.replace(var_value[symb1], symb2)
+        var.update_variable('string', result)
+
+
+class Type(Instruction):
+    def __init__(self, number):
+        super().__init__("TYPE", number)
+
+    def check_instr(self):
+        if (len(self.args) != 2):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+        result_var = self.find_var(0)
+        if result_var == -1: exit(56)
+         # get type of symbol adn value
+        if self.args[1].arg_type == "var": # is variable
+            var = self.find_var(1)
+            if var == -1: 
+                result_var.update_variable("nil", "nil")
+                return
+            symb_type = var.get_variable_type()
+        else:                               # is constant
+            symb_type = self.args[1].arg_type
+
+        result = symb_type
+        result_var.update_variable("strint", result)
+        
+class Dprint(Instruction):
+    def __init__(self, number):
+        super().__init__("DPRINT", number)
+
+    def check_instr(self):
+        if (len(self.args) != 1):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+        symb, _ = self.get_symb(0)
+        stderr.write(symb, "\n")
+
+class Break(Instruction):
+    def __init__(self, number):
+        super().__init__("BREAK", number)
+
+    def check_instr(self):
+        if (len(self.args) != 0):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+        stderr.write("Instruction BREAK")
+        
+###################################################
 ''' list of instruction '''
 instructions = []
 
@@ -505,6 +645,16 @@ for child in root:
         instructions.append(Getchar(3))
     elif instruction_opcode == "SETCHAR":
         instructions.append(Setchar(3))
+    elif instruction_opcode == "SETCHAR":
+        instructions.append(Setchar(3))
+    elif instruction_opcode == "TYPE":
+        instructions.append(Type(3))
+
+
+    elif instruction_opcode == "DPRINT":
+        instructions.append(Dprint(3))
+    elif instruction_opcode == "BREAK":
+        instructions.append(Break(3))
         
     else:
         stderr.write("wrong opcode\n")
@@ -515,7 +665,7 @@ for child in root:
     for instr_arg in child:
         root[:] = sorted(root, key=lambda instr_arg: instr_arg.tag[-1:]) # sort by order pridar INT !!!!!!!!!
 
-        print(child.attrib["opcode"], child.attrib["order"], instr_arg.tag, instr_arg.attrib)
+        # print(child.attrib["opcode"], child.attrib["order"], instr_arg.tag, instr_arg.attrib)
 
         if not ('order' in child.attrib) or not ('opcode' in child.attrib):
             stderr.write("missing order or opcode")
