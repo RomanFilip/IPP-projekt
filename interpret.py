@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 temporary_frame = []
 local_frame = []
 global_frame = []
+labels = []
 
 class Argument:
     def __init__(self, number, arg_type, value):
@@ -56,6 +57,14 @@ class Instruction:
         else:
             stderr.write("frame not found\n")
             exit(52)
+
+    def find_label(self, position):
+        # labl = self.args[position].value
+        # print(labels[0].get_label_name())
+        for labl in labels:
+            if labl.get_label_name() == self.args[position].value:
+                return labl
+        return -1
 
     def get_symb(self, number_of_argument):
         if self.args[number_of_argument].arg_type == "var": # is variable
@@ -329,7 +338,6 @@ class StrI2Int(Instruction):
         if var == -1: exit(56)
         var.update_variable('string', result)
 
-
 class Write(Instruction):
     def __init__(self, number):
         super().__init__("WRITE", number)
@@ -571,7 +579,118 @@ class Break(Instruction):
 
     def execute(self):
         stderr.write("Instruction BREAK")
-        
+
+class Label(Instruction):
+    def __init__(self, opcode,  number, order):
+        super().__init__(opcode, number)
+        self.order = order
+        self.label_name = ""
+    
+
+    def set_name(self):
+        if (len(self.args) != 1):
+            stderr.write("missing argument labrl ")
+            exit(52)
+        self.label_name= self.args[0].value
+    
+    def check_instr(self):
+        if (len(self.args) != 1):
+            stderr.write("missing argument labr")
+            exit(52)
+
+    def execute(self):
+        # check if label exists
+        # print(self.order)
+        # stderr.write("Instruction LABEL")
+        # _label = self.find_label(0)
+        # if _label < 0:
+        #     stderr.write("label is not defined")
+        pass
+    
+    def get_position(self):
+        return self.order
+    def get_label_name(self):
+        return self.label_name
+    
+class ConditionalJump(Instruction):
+    def __init__(self, opcode, number):
+        super().__init__(opcode, number)
+
+    def check_instr(self):
+        if (len(self.args) != 3):
+            stderr.write("missing argument")
+            exit(52)
+
+    def execute(self):
+        symb1, symb1_type = self.get_symb(1)
+
+        symb2, symb2_type = self.get_symb(2)
+
+        if symb1_type != symb2_type:
+            if symb1_type != "nill" or symb2_type != "nill":
+                exit(53)   
+
+        global position
+        if self.name == "JUMPIFEQ":
+            if symb1 == symb2:
+                lab = self.find_label(0)
+                if lab == -1: 
+                    stderr.write("lable doesnt exists\n")
+                    exit(53)
+                jump_to = lab.get_position()
+                position = int(jump_to)-1
+        else:
+            if symb1 != symb2:
+                lab = self.find_label(0)
+                if lab == -1: 
+                    stderr.write("lable doesnt exists\n")
+                    exit(53)
+                jump_to = lab.get_position()
+                position = int(jump_to)-1
+
+class Jump(Instruction):
+    def __init__(self, number):
+        super().__init__("JUMP", number)
+
+    def check_instr(self):
+        pass 
+    def execute(self):
+        if (len(self.args) != 1):
+            stderr.write("missing argument")
+            exit(52)
+
+        global position
+        lab = self.find_label(0)
+        if lab == -1: 
+            stderr.write("lable doesnt exists\n")
+            exit(53)
+        jump_to = lab.get_position()
+        position = int(jump_to)-1
+class Exit(Instruction):
+    def __init__(self, number):
+        super().__init__("EXIT", number)
+
+    def check_instr(self):
+        pass 
+    def execute(self):
+        if (len(self.args) != 1):
+            stderr.write("missing argument")
+            exit(52)
+
+        symb, symb_type = self.get_symb(0)
+        if symb_type != "int":
+            exit(57)
+
+        if not(re.match(r"^[0-9]+$", symb)):
+            exit(57)
+
+        symb = int(symb)
+        if symb > 49:
+            exit(57)
+
+        exit(symb)
+
+
 ###################################################
 ''' list of instruction '''
 instructions = []
@@ -610,13 +729,21 @@ root[:] = sorted(root, key=lambda child: child.get("order")) # sort by order pri
 if root.tag != 'program':
     stderr.write("mising root tag\n")
     exit(52) 
-
+last_instruction_order = 0
 for child in root:
     if child.tag != 'instruction':
         stderr.write("missing instruction\n")
         exit(52)
 
+    # check right order of instruction
+    instruction_order =  int(child.attrib["order"])
+    if (last_instruction_order + 1) != instruction_order: 
+        stderr.write("wrong order, you missed something")
+        exit(52)
+    last_instruction_order = instruction_order
+
     instruction_opcode = child.attrib["opcode"].upper()
+
     if instruction_opcode == "DEFVAR":
         instructions.append(Defvar(1))
     elif instruction_opcode == "MOVE":
@@ -649,7 +776,14 @@ for child in root:
         instructions.append(Setchar(3))
     elif instruction_opcode == "TYPE":
         instructions.append(Type(3))
-
+    elif instruction_opcode == "LABEL":
+        instructions.append(Label(instruction_opcode, 1, child.attrib["order"]))
+    elif instruction_opcode == "JUMP":
+        instructions.append(Jump(1))
+    elif instruction_opcode == "JUMPIFEQ" or instruction_opcode == "JUMPIFNEQ":
+        instructions.append(ConditionalJump(instruction_opcode, 3))
+    elif instruction_opcode == "EXIT":
+        instructions.append(Exit(1))
 
     elif instruction_opcode == "DPRINT":
         instructions.append(Dprint(3))
@@ -663,7 +797,7 @@ for child in root:
     # iter trough child
 
     for instr_arg in child:
-        root[:] = sorted(root, key=lambda instr_arg: instr_arg.tag[-1:]) # sort by order pridar INT !!!!!!!!!
+        # root[:] = sorted(root, key=lambda instr_arg: instr_arg.tag[-1:]) # sort by order pridar INT !!!!!!!!!
 
         # print(child.attrib["opcode"], child.attrib["order"], instr_arg.tag, instr_arg.attrib)
 
@@ -672,17 +806,27 @@ for child in root:
             exit(52)
 
         if not(re.match(r"arg[123]", instr_arg.tag)):
-            stderr.write("wrong argument format")
+            stderr.write("wrong argument format\n")
             exit(52)
 
         # add arguments to instruction        
-        instructions[int(child.attrib["order"])-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], child.find(instr_arg.tag).text)
+        instructions[instruction_order-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], child.find(instr_arg.tag).text)
+        if instruction_opcode == "LABEL":
+            _label = instructions[instruction_order-1].find_label(0)
+            if _label == -1:
+                stderr.write("label aleready exists\n")
+                exit(52)
+            instructions[instruction_order-1].set_name()
+            labels.append(instructions[instruction_order-1])
 
-# interpret
-for instr in instructions:
+position = 0
+while position < len(instructions):
+
+# for i in range(len(instructions)):
+    instructions[position].check_instr()
+    instructions[position].execute()
+    # print(position)
+    position += 1
     # print("______instruction")
-    # print(type(instr))
-    instr.check_instr()
-    instr.execute()
 
 exit(0)
