@@ -13,6 +13,7 @@ temporary_frame = []
 local_frame = []
 global_frame = []
 labels = []
+data_stack = []
 
 class Argument:
     def __init__(self, number, arg_type, value):
@@ -22,6 +23,12 @@ class Argument:
 
     def get_argument(self):
         print(self.number, self.arg_type, self.value)
+    
+    def get_argument_number(self):
+        return self.number
+    
+    def get_argument_value(self):
+        return self.value
 
 class Instruction:
     def __init__(self, name, number):
@@ -143,7 +150,7 @@ class Frame:
             stderr.write("empty stack\n")
             exit(55)
     
-    def sef_var(self, arg, arg_type, value):
+    def set_var(self, arg, arg_type, value):
         arg_value = arg.value.split("@")
         frame = arg_value[0]; name = arg_value[1]
         frame_obj = self.get_frame(frame)
@@ -175,8 +182,6 @@ class Defvar(Instruction):
     def __init__(self, number):
         super().__init__("DEFVAR", number)
 
-    def check_instr(self):
-            pass
     
     def execute(self):
         if (len(self.args) != 1):
@@ -212,6 +217,86 @@ class Defvar(Instruction):
             stderr.write("frame not found\n")
             exit(52)
 
+class Createframe(Instruction):
+    def __init__(self, number):
+        super().__init__("CREATEFRAME", number)
+
+    def execute(self):
+        if (len(self.args) != 0):
+            stderr.write("wrong argument\n")
+            exit(32)
+class Pushframe(Instruction):
+    def __init__(self, number):
+        super().__init__("PUSHFRAME", number)
+
+    
+    def execute(self):
+        if (len(self.args) != 0):
+            stderr.write("wrong argument\n")
+            exit(32)
+
+        
+class Popframe(Instruction):
+    def __init__(self, number):
+        super().__init__("POPFRAME", number)
+
+    
+    def execute(self):
+        if (len(self.args) != 0):
+            stderr.write("wrong argument\n")
+            exit(32)
+class Call(Instruction):
+    def __init__(self, number):
+        super().__init__("Call", number)
+
+    def execute(self):
+        if (len(self.args) != 1):
+            stderr.write("wrong argument\n")
+            exit(32)
+
+
+class Return(Instruction):
+    def __init__(self, number):
+        super().__init__("RETURN", number)
+
+    def execute(self):
+        if (len(self.args) != 0):
+            stderr.write("wrong argument\n")
+            exit(32)
+
+class Pushs(Instruction):
+    def __init__(self, number):
+        super().__init__("PUSHS", number)
+
+    
+    def execute(self):
+        if (len(self.args) != 1):
+            stderr.write("wrong argument\n")
+            exit(32)
+
+        symb, symb_type = self.get_symb(0)
+        if not (re.match(r"int|string|nil|bool|var", symb_type)):
+            exit(32)
+        
+        data_stack.append((symb_type, symb))
+
+class Pops(Instruction):
+    def __init__(self, number):
+        super().__init__("POPS", number)
+
+    
+    def execute(self):
+        if (len(self.args) != 1):
+            stderr.write("wrong argument\n")
+            exit(52)
+
+        try:
+            arg_type, arg_value = data_stack.pop()
+            frames.set_var(self.args[0], arg_type, arg_value)
+        except IndexError:
+            stderr.write("empty stack\n")
+            exit(56)
+
         
 class Move(Instruction):
     def __init__(self, number):
@@ -242,14 +327,14 @@ class ArithmeticOperations(Instruction):
         if not(re.match(r"^[-0-9]+$", symb1)):
             exit(32)
         if symb1_type != "int":
-            exit(52)
+            exit(53)
 
         symb2, symb2_type = self.get_symb(2)
 
         if not(re.match(r"^[-0-9]+$", symb2)):
-            exit(32)
+            exit(53)
         if symb2_type != "int":
-            exit(52)
+            exit(53)
 
         if self.name == "ADD":
             result = int(symb1) + int(symb2)
@@ -626,7 +711,11 @@ class Type(Instruction):
             if var == -1: 
                 result_var.update_variable("nil", "nil")
                 return
-            symb_type = var.get_variable_type()
+            
+            if var.value == "":
+                symb_type = ""
+            else:
+                symb_type = var.get_variable_type()
         else:                               # is constant
             symb_type = self.args[1].arg_type
 
@@ -643,7 +732,7 @@ class Dprint(Instruction):
             stderr.write("missing argument")
             exit(32)
         symb, _ = self.get_symb(0)
-        stderr.write(symb, "\n")
+        stderr.write(symb + "\n")
 
 class Break(Instruction):
     def __init__(self, number):
@@ -762,6 +851,12 @@ class Exit(Instruction):
 
         exit(symb)
 
+class Empty:
+    def __init__(self):
+        pass
+    
+    def execute(self):
+        pass
 
 ###################################################
 
@@ -798,30 +893,45 @@ if __name__ == "__main__":
         exit(31)
 
     root = tree.getroot()
-
-    root[:] = sorted(root, key=lambda child: child.get("order")) # sort by order pridar INT !!!!!!!!!
+    frames = Frame()
 
     # Define a custom key function for sorting
-
-    # Print the sorted XML
+    try:
+        root[:] = sorted(root, key=lambda child: child.get("order")) # sort by order pridar INT !!!!!!!!!
+    except TypeError:
+        stderr.write("catching exeption\n")
+        exit(31)
 
     '''check xml''' 
     # missing root tag
     if root.tag != 'program':
         stderr.write("mising root tag\n")
-        exit(52) 
+        exit(32) 
     last_instruction_order = 0
     for child in root:
         if child.tag != 'instruction':
             stderr.write("missing instruction\n")
             exit(32)
 
-        instruction_order = int(child.attrib["order"])
-        # check right order of instruction
-        if (last_instruction_order + 1) != instruction_order: 
-            # add empty class
-            stderr.write("wrong order, you missed something\n")
+        if not ('order' in child.attrib) or not ('opcode' in child.attrib):
+                stderr.write("missing order or opcode")
+                exit(32)
+
+        instruction_order = child.attrib["order"]
+        if not(re.match(r"^[0-9]+$", instruction_order)):
             exit(32)
+        else:
+            instruction_order = int(child.attrib["order"])
+
+        # check right order of instruction
+        if last_instruction_order >= instruction_order: 
+            stderr.write("wrong order\n")
+            exit(32)
+            # add empty class
+        while (last_instruction_order+1) != instruction_order:
+            instructions.append(Empty())
+            last_instruction_order += 1
+
         last_instruction_order = instruction_order
 
         instruction_opcode = child.attrib["opcode"].upper()
@@ -830,6 +940,20 @@ if __name__ == "__main__":
             instructions.append(Defvar(1))
         elif instruction_opcode == "MOVE":
             instructions.append(Move(2))
+        elif instruction_opcode == "CREATEFRAME":
+            instructions.append(Createframe(0))
+        elif instruction_opcode == "PUSHFRAME":
+            instructions.append(Pushframe(0))
+        elif instruction_opcode == "POPFRAME":
+            instructions.append(Popframe(0))
+        elif instruction_opcode == "Call":
+            instructions.append(Call(1))
+        elif instruction_opcode == "RETURN":
+            instructions.append(Return(0))
+        elif instruction_opcode == "PUSHS":
+            instructions.append(Pushs(1))
+        elif instruction_opcode == "POPS":
+            instructions.append(Pops(1))
         elif instruction_opcode == "ADD" or instruction_opcode == "SUB" or instruction_opcode == "MUL" or instruction_opcode == "IDIV":
             instructions.append(ArithmeticOperations(instruction_opcode ,3))       
         elif instruction_opcode == "LT" or instruction_opcode == "GT" or instruction_opcode == "EQ":
@@ -866,7 +990,6 @@ if __name__ == "__main__":
             instructions.append(ConditionalJump(instruction_opcode, 3))
         elif instruction_opcode == "EXIT":
             instructions.append(Exit(1))
-
         elif instruction_opcode == "DPRINT":
             instructions.append(Dprint(3))
         elif instruction_opcode == "BREAK":
@@ -883,19 +1006,14 @@ if __name__ == "__main__":
 
             # print(child.attrib["opcode"], child.attrib["order"], instr_arg.tag, instr_arg.attrib)
 
-            if not ('order' in child.attrib) or not ('opcode' in child.attrib):
-                stderr.write("missing order or opcode")
-                exit(32)
-
             if not(re.match(r"arg[123]", instr_arg.tag)):
                 stderr.write("wrong argument format\n")
                 exit(32)
 
-            
-
             # add arguments to instruction        
             instructions[instruction_order-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], child.find(instr_arg.tag).text)
             instructions[instruction_order-1].args.sort(key=sortFun)
+
             if instruction_opcode == "LABEL":
                 _label = instructions[instruction_order-1].find_label(0)
                 if _label != -1:
@@ -904,13 +1022,22 @@ if __name__ == "__main__":
                 instructions[instruction_order-1].set_name()
                 labels.append(instructions[instruction_order-1])
 
+        # check arguments number
+        args_length = len(instructions[instruction_order-1].args)
+        if args_length == 1:
+            if instructions[instruction_order-1].args[0].get_argument_number() != 1:
+                stderr.write("missing argument 1\n")
+                exit(32)
+        elif args_length > 1:
+            if instructions[instruction_order-1].args[1].get_argument_number() != 2:
+                stderr.write("missing argument 2\n")
+                exit(32)
+
     position = 0
     while position < len(instructions):
-
-    # for i in range(len(instructions)):
         instructions[position].execute()
-        # print(position)
         position += 1
+        # print(position)
         # print("______instruction")
 
     exit(0)
