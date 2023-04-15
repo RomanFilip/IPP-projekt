@@ -15,6 +15,7 @@ global_frame = []
 labels = []
 data_stack = []
 stack_position = []
+frameStack = []
 
 class Argument:
     def __init__(self, number, arg_type, value):
@@ -111,26 +112,26 @@ class Instruction:
         for arg in self.args:
             arg.get_argument()
 
-    def find_var(self, position):
-        value = self.args[position].get_argument_value().strip().split("@")
-        if value[0] == "GF":
-            for variable in global_frame:
-                if variable.get_variable_name() == value[1]:
-                    return variable
-            return -1
-        elif value[0] == "LF":
-            for variable in global_frame:
-                if variable.get_variable_name() == value[1]:
-                    return variable
-            return -1
-        elif value[0] == "TF":
-            for variable in global_frame:
-                if variable.get_variable_name() == value[1]:
-                    return variable
-            return -1
-        else:
-            stderr.write("frame not found\n")
-            exit(52)
+    # def find_var(self, position):
+    #     value = self.args[position].get_argument_value().strip().split("@")
+    #     if value[0] == "GF":
+    #         for variable in global_frame:
+    #             if variable.get_variable_name() == value[1]:
+    #                 return variable
+    #         return -1
+    #     elif value[0] == "LF":
+    #         for variable in global_frame:
+    #             if variable.get_variable_name() == value[1]:
+    #                 return variable
+    #         return -1
+    #     elif value[0] == "TF":
+    #         for variable in global_frame:
+    #             if variable.get_variable_name() == value[1]:
+    #                 return variable
+    #         return -1
+    #     else:
+    #         stderr.write("frame not found\n")
+    #         exit(52)
 
     def find_label(self, position):
         # labl = self.args[position].value
@@ -218,6 +219,7 @@ class Createframe(Instruction):
         if (len(self.args) != 0):
             stderr.write("wrong argument\n")
             exit(32)
+        frames.create_frame()
 class Pushframe(Instruction):
     def __init__(self, number):
         super().__init__("PUSHFRAME", number)
@@ -390,11 +392,13 @@ class RelationalOperators(Instruction):
         # get type of symbol adn value
         symb1, symb1_type = self.get_symb(1)
         # check supported types
-        if not(re.match(r"int|bool|string", symb1_type)):
+        if not(re.match(r"int|bool|string|var", symb1_type)):
             exit(53)
 
         # get type of symbol and value
         symb2, symb2_type = self.get_symb(2)
+        if not(re.match(r"int|bool|string|var", symb2_type)):
+            exit(53)
 
 
         # check type compatibility
@@ -405,6 +409,34 @@ class RelationalOperators(Instruction):
             result = symb1 < symb2
         if self.name == "GT":
             result = symb1 > symb2
+        
+        # save result
+        frames.set_var(self.args[0], "bool", str(result))
+class Eq(Instruction):
+    def __init__(self, number):
+        super().__init__("GT", number)
+
+    def check_instr(self):
+        pass
+    def execute(self):
+        if (len(self.args) != 3):
+            exit(32)
+        # get type of symbol adn value
+        symb1, symb1_type = self.get_symb(1)
+        # check supported types
+        if not(re.match(r"int|bool|string|var|nil", symb1_type)):
+            exit(53)
+
+        # get type of symbol and value
+        symb2, symb2_type = self.get_symb(2)
+        if not(re.match(r"int|bool|string|var|nil", symb2_type)):
+            exit(53)
+
+
+        # check type compatibility
+        if symb1_type != symb2_type:
+            exit(53)
+
         if self.name == "EQ":
             result = symb1 == symb2
         
@@ -437,11 +469,17 @@ class BooleanOperators(Instruction):
         if not(re.match(r"true|false", symb2)):
             exit(53)
 
+        # symb1 = symb1[0].upper() + symb1[1:]
+        # symb2 = symb2[0].upper() + symb2[1:]
+        if symb1 == "false":
+            symb1 = ""
+        if symb2 == "false":
+            symb2 = ""
         if self.name == "AND":
-            result = symb1 and symb2
-        elif self.name == "OR":
-            result = symb1 or symb2
-
+            result = bool(symb1) and bool(symb2)
+        if self.name == "OR":
+            result = bool(symb1) or bool(symb2)
+        
         # save result
         frames.set_var(self.args[0], "bool", str(result))
 
@@ -458,7 +496,9 @@ class Not(Instruction):
         if symb1_type != "bool":
             exit(53)
 
-        result = not symb1
+        if symb1 == "false":
+            symb1 = ""
+        result = not bool(symb1)    
         
         # save result
         frames.set_var(self.args[0], "bool", str(result))
@@ -473,7 +513,7 @@ class Int2Char(Instruction):
         # get type of symbol adn value
         symb1, symb1_type = self.get_symb(1)
         if not(re.match(r"^[0-9]+$", symb1)):
-            exit(32)
+            exit(53)
         symb1 = int(symb1)
         # print(symb1_type)
         if symb1_type != "int":
@@ -500,11 +540,11 @@ class StrI2Int(Instruction):
         # get type of symbol adn value
         symb1, symb1_type = self.get_symb(1)
         if symb1_type != "string":
-            exit(52)
+            exit(53)
         
         symb2, symb2_type = self.get_symb(2)
         if symb2_type != "int":
-            exit(52)
+            exit(53)
 
         if not(re.match(r"^[0-9]+$", symb2)):
             exit(32)
@@ -598,7 +638,7 @@ class Concat(Instruction):
         symb2, symb2_type = self.get_symb(2)
 
         # check supported types
-        if not(re.match(r"string", symb1_type)):
+        if not(re.match(r"string", symb2_type)):
             exit(53)
         
         result = symb1 + symb2
@@ -676,7 +716,7 @@ class Setchar(Instruction):
         symb1, symb1_type = self.get_symb(1)
 
         # check type compatibility
-        if not(re.match(r"int", symb1_type)):
+        if not(re.match(r"int|var", symb1_type)):
             exit(53)
         if not(re.match(r"^[-0-9]+$", symb1)):
             exit(32)
@@ -685,10 +725,12 @@ class Setchar(Instruction):
 
         symb2, symb2_type = self.get_symb(2)
         # check supported types
-        if not(re.match(r"string", symb2_type)):
+        if not(re.match(r"string|var", symb2_type)):
             exit(53)
-        if type(symb2) != "string":
-            exit(53)
+        # if type(symb2) != "str":
+        #     stderr.write("wrong type\n")
+        #     exit(53)
+
         length = len(symb2)
         if length == 0:
             exit(58)
@@ -699,10 +741,7 @@ class Setchar(Instruction):
         if not(re.match(r"string", var_type)):
             exit(53)
 
-        if var_type != "string":
-            exit(53)
-
-        if (len(var) > symb1) or (symb1 < 0):
+        if (len(var) < symb1) or (symb1 < 0):
             exit(58)
 
         result = var.replace(var[symb1], symb2)
@@ -981,8 +1020,10 @@ if __name__ == "__main__":
             instructions.append(Pops(1))
         elif instruction_opcode == "ADD" or instruction_opcode == "SUB" or instruction_opcode == "MUL" or instruction_opcode == "IDIV":
             instructions.append(ArithmeticOperations(instruction_opcode ,3))       
-        elif instruction_opcode == "LT" or instruction_opcode == "GT" or instruction_opcode == "EQ":
+        elif instruction_opcode == "LT" or instruction_opcode == "GT":
             instructions.append(RelationalOperators(instruction_opcode, 3))
+        elif instruction_opcode == "EQ":
+            instructions.append(Eq(3))
         elif instruction_opcode == "AND" or instruction_opcode == "OR":
             instructions.append(BooleanOperators(instruction_opcode, 3))
         elif instruction_opcode == "NOT":
@@ -1038,8 +1079,11 @@ if __name__ == "__main__":
             # add arguments to instruction
             argumen_value = child.find(instr_arg.tag).text
             if argumen_value is None:
-                stderr.write("wrong argumetn type\n")
-                exit(32)
+                if instr_arg.attrib['type'] == "string":
+                    argumen_value = " "
+                else:
+                    stderr.write("wrong argumetn type\n")
+                    exit(32)
             
             try:        
                 instructions[instruction_order-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], argumen_value.strip())
