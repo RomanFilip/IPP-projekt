@@ -14,6 +14,8 @@ local_frame = []
 global_frame = []
 labels = []
 data_stack = []
+stack_position = []
+frameStack = []
 
 class Argument:
     def __init__(self, number, arg_type, value):
@@ -29,89 +31,9 @@ class Argument:
     
     def get_argument_value(self):
         return self.value
-
-class Instruction:
-    def __init__(self, name, number):
-        self.name = name
-        self.numberOfArg = number
-        self.args = []
-
-    def add_argument(self, number, arg_type, value):
-        self.args.append(Argument(number, arg_type, value))
-
-    def get_arguments(self):
-        print("ARGUMENTS: ")
-        for arg in self.args:
-            arg.get_argument()
-
-    def find_var(self, position):
-        value = self.args[position].value.split("@")
-        if value[0] == "GF":
-            for variable in global_frame:
-                if variable.get_variable_name() == value[1]:
-                    return variable
-            return -1
-        elif value[0] == "LF":
-            for variable in global_frame:
-                if variable.get_variable_name() == value[1]:
-                    return variable
-            return -1
-        elif value[0] == "TF":
-            for variable in global_frame:
-                if variable.get_variable_name() == value[1]:
-                    return variable
-            return -1
-        else:
-            stderr.write("frame not found\n")
-            exit(52)
-
-    def find_label(self, position):
-        # labl = self.args[position].value
-        # print(labels[0].get_label_name())
-        for labl in labels:
-            if labl.get_label_name() == self.args[position].value:
-                return labl
-        return -1
-
-    def get_symb(self, number_of_argument):
-        if self.args[number_of_argument].arg_type == "var": # is variable
-            var = self.find_var(number_of_argument)
-            if var == -1: exit(56)
-            symb_type = var.get_variable_type()
-            symb = var.get_variable_value()
-        else:                               # is constant
-            symb_type = self.args[number_of_argument].arg_type
-            symb = self.args[number_of_argument].value
-        return (str(symb), symb_type)
-
-        
-class Variable:
-
-    def __init__(self, frame, var_type, name, value):
-        self.frame = frame
-        self.var_type = var_type
-        self.name = name
-        self.value = value
-
     
-    def add_global_frame(self):
-        self.global_frame.append(self)
-
-    def get_variable(self):
-        print(self.frame, self.var_type, self.name, self.value)
-
-    def get_variable_type(self):
-        return self.var_type
-
-    def get_variable_name(self):
-        return self.name
-    
-    def get_variable_value(self):
-        return self.value
-    
-    def update_variable(self, var_type, value):
-        self.var_type = var_type
-        self.value = value
+    def get_argument_type(self):
+        return self.arg_type
 
 class Frame:
     def __init__(self):
@@ -151,12 +73,13 @@ class Frame:
             exit(55)
     
     def set_var(self, arg, arg_type, value):
-        arg_value = arg.value.split("@")
+        
+        arg_value = arg.get_argument_value().split("@")
         frame = arg_value[0]; name = arg_value[1]
         frame_obj = self.get_frame(frame)
         if frame_obj is None:
             stderr.write("not defined\n")
-            exit(55)
+            exit(52)
         if name not in frame_obj:
             stderr.write("variable doesnt exist\n")
             exit(55)
@@ -164,7 +87,7 @@ class Frame:
         frame_obj[name]["type_arg"] = arg_type
 
     def def_var(self, arg):
-        arg_value = arg.value.split("@")
+        arg_value = arg.get_argument_value().split("@")
         frame = arg_value[0]; name = arg_value[1]
         frame_obj = self.get_frame(frame)
         if frame_obj is None:
@@ -177,6 +100,101 @@ class Frame:
             else:
                 frame_obj[name] = {"value": None, "type_arg": None}
             
+frames = Frame()
+class Instruction:
+    def __init__(self, name, number):
+        self.name = name
+        self.numberOfArg = number
+        self.args = []
+
+    def add_argument(self, number, arg_type, value):
+        self.args.append(Argument(number, arg_type, value))
+
+    def get_arguments(self):
+        print("ARGUMENTS: ")
+        for arg in self.args:
+            arg.get_argument()
+
+    # def find_var(self, position):
+    #     value = self.args[position].get_argument_value().strip().split("@")
+    #     if value[0] == "GF":
+    #         for variable in global_frame:
+    #             if variable.get_variable_name() == value[1]:
+    #                 return variable
+    #         return -1
+    #     elif value[0] == "LF":
+    #         for variable in global_frame:
+    #             if variable.get_variable_name() == value[1]:
+    #                 return variable
+    #         return -1
+    #     elif value[0] == "TF":
+    #         for variable in global_frame:
+    #             if variable.get_variable_name() == value[1]:
+    #                 return variable
+    #         return -1
+    #     else:
+    #         stderr.write("frame not found\n")
+    #         exit(52)
+
+    def find_label(self, position):
+        # labl = self.args[position].value
+        # print(labels[0].get_label_name())
+        for labl in labels:
+            if labl.get_label_name() == self.args[position].get_argument_value():
+                return labl
+        return -1
+
+    def get_symb(self, number_of_argument):
+            if self.args[number_of_argument].arg_type == "var": # is variable
+                arg_value = self.args[number_of_argument].get_argument_value().split("@")
+                frame = arg_value[0]; value = arg_value[1]
+                frame_obj = frames.get_frame(frame)
+                if frame_obj is None:
+                    stderr.write("frame does not exist\n")
+                    exit(55)
+                if value not in frame_obj:
+                    stderr.write("variable not defined\n")
+                    exit(54)
+                else:
+                    if frame_obj[value]["type_arg"] is None:
+                        # stderr.write("where variable value\n")
+                        # exit(56)
+                        return "", "nil"
+                    return frame_obj[value]["value"], frame_obj[value]["type_arg"]
+            else:                               # is constant
+                symb_type = self.args[number_of_argument].arg_type
+                symb = self.args[number_of_argument].value
+            return (str(symb), symb_type)
+        
+class Variable:
+
+    def __init__(self, frame, var_type, name, value):
+        self.frame = frame
+        self.var_type = var_type
+        self.name = name
+        self.value = value
+
+    
+    def add_global_frame(self):
+        self.global_frame.append(self)
+
+    def get_variable(self):
+        print(self.frame, self.var_type, self.name, self.value)
+
+    def get_variable_type(self):
+        return self.var_type
+
+    def get_variable_name(self):
+        return self.name
+    
+    def get_variable_value(self):
+        return self.value
+    
+    def update_variable(self, var_type, value):
+        self.var_type = var_type
+        self.value = value
+
+
 
 class Defvar(Instruction):
     def __init__(self, number):
@@ -191,31 +209,10 @@ class Defvar(Instruction):
         if (self.args[0].arg_type != "var"):
             stderr.write("wrong argument arg_type\n")
             exit(32)
-        value = self.args[0].value.split("@")
-        var = Variable(value[0], self.args[0].arg_type, value[1], "")
+        # value = self.args[0].value.split("@")
+        # var = Variable(value[0], self.args[0].arg_type, value[1], "")
+        frames.def_var(self.args[0])
 
-        # check if exist and save variable
-        if(value[0] == "GF"):
-            if(value[1] in global_frame):
-                stderr.write("variable already declared\n")
-                exit(52) 
-            else:
-                global_frame.append(var)
-        elif(value[0] == "LF"):
-            if(value[1] in local_frame):
-                stderr.write("variable already declared\n")
-                exit(52)
-            else:
-                local_frame.append(var)
-        elif(value[0] == "TF"):
-            if(value[1] in temporary_frame):
-                stderr.write("variable already declared\n")
-                exit(52)
-            else:
-                temporary_frame.append(var)
-        else:
-            stderr.write("frame not found\n")
-            exit(52)
 
 class Createframe(Instruction):
     def __init__(self, number):
@@ -225,6 +222,7 @@ class Createframe(Instruction):
         if (len(self.args) != 0):
             stderr.write("wrong argument\n")
             exit(32)
+        frames.create_frame()
 class Pushframe(Instruction):
     def __init__(self, number):
         super().__init__("PUSHFRAME", number)
@@ -235,6 +233,7 @@ class Pushframe(Instruction):
             stderr.write("wrong argument\n")
             exit(32)
 
+        frames.push_frame()
         
 class Popframe(Instruction):
     def __init__(self, number):
@@ -245,14 +244,35 @@ class Popframe(Instruction):
         if (len(self.args) != 0):
             stderr.write("wrong argument\n")
             exit(32)
+
+        frames.pop_frame()
 class Call(Instruction):
-    def __init__(self, number):
-        super().__init__("Call", number)
+    def __init__(self, number, order):
+        super().__init__("CALL", number)
+        self.order = order
 
     def execute(self):
         if (len(self.args) != 1):
             stderr.write("wrong argument\n")
             exit(32)
+        
+        # if arg_type != "label":
+        #     stderr.write("must be label bro\n")
+        #     exit(53)
+        stack_position.append(self.order)
+        lab = self.find_label(0)
+        if lab == -1: 
+            stderr.write("lable doesnt exists\n")
+            exit(52)
+        jump_to = lab.get_position()
+        global position
+        position = int(jump_to)-1
+        # if label_name in labels: # fix find label
+        #     global position
+        #     position = labels[label_name]
+        # else:
+        #     stderr.write("missing label\n")
+        #     exit(52)
 
 
 class Return(Instruction):
@@ -263,6 +283,13 @@ class Return(Instruction):
         if (len(self.args) != 0):
             stderr.write("wrong argument\n")
             exit(32)
+        
+        try:
+            global position
+            position = int(stack_position.pop())
+        except IndexError:
+            stderr.write("empty stack\n")
+            exit(56)
 
 class Pushs(Instruction):
     def __init__(self, number):
@@ -275,6 +302,7 @@ class Pushs(Instruction):
             exit(32)
 
         symb, symb_type = self.get_symb(0)
+        # print(symb, symb_type)
         if not (re.match(r"int|string|nil|bool|var", symb_type)):
             exit(32)
         
@@ -292,6 +320,7 @@ class Pops(Instruction):
 
         try:
             arg_type, arg_value = data_stack.pop()
+            # print(arg_type, arg_value)
             frames.set_var(self.args[0], arg_type, arg_value)
         except IndexError:
             stderr.write("empty stack\n")
@@ -302,6 +331,11 @@ class Move(Instruction):
     def __init__(self, number):
         super().__init__("MOVE", number)
 
+
+    def check_instr(self):
+        pass
+    
+    
     def check_instr(self):
         pass
     
@@ -310,9 +344,15 @@ class Move(Instruction):
             stderr.write("wrong number of arguments")
             exit(32)
 
-        var = self.find_var(0)  
-        if var == -1: exit(56)         
-        var.update_variable(self.args[1].arg_type, self.args[1].value)      
+        # var = self.find_var(0)  
+        # if var == -1: exit(56)         
+        # var.update_variable(self.args[1].arg_type, self.args[1].value)  
+        if self.args[1].arg_type == "var":
+            symb, symb_type = self.get_symb(1)
+            frames.set_var(self.args[0], symb_type, symb)
+        else:
+            frames.set_var(self.args[0], self.args[1].arg_type, self.args[1].value)
+
 
 class ArithmeticOperations(Instruction):
     def __init__(self, opcode, number):
@@ -324,17 +364,17 @@ class ArithmeticOperations(Instruction):
         if (len(self.args) != 3):
             exit(32)
         symb1, symb1_type = self.get_symb(1)
-        if not(re.match(r"^[-0-9]+$", symb1)):
-            exit(32)
         if symb1_type != "int":
             exit(53)
+        if not(re.match(r"^[-0-9]+$", symb1)):
+            exit(32)
 
         symb2, symb2_type = self.get_symb(2)
 
-        if not(re.match(r"^[-0-9]+$", symb2)):
-            exit(53)
         if symb2_type != "int":
             exit(53)
+        if not(re.match(r"^[-0-9]+$", symb2)):
+            exit(32)
 
         if self.name == "ADD":
             result = int(symb1) + int(symb2)
@@ -347,9 +387,10 @@ class ArithmeticOperations(Instruction):
                 exit(57)
             result = int(symb1) // int(symb2)
 
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable("int", result)
+        # var = self.find_var(0)
+        # if var == -1: exit(56)
+        # var.update_variable("int", result)
+        frames.set_var(self.args[0], "int", str(result))
 
 class RelationalOperators(Instruction):
     def __init__(self, opcode, number):
@@ -363,11 +404,13 @@ class RelationalOperators(Instruction):
         # get type of symbol adn value
         symb1, symb1_type = self.get_symb(1)
         # check supported types
-        if not(re.match(r"int|bool|string", symb1_type)):
+        if not(re.match(r"int|bool|string|var", symb1_type)):
             exit(53)
 
         # get type of symbol and value
         symb2, symb2_type = self.get_symb(2)
+        if not(re.match(r"int|bool|string|var", symb2_type)):
+            exit(53)
 
 
         # check type compatibility
@@ -378,13 +421,42 @@ class RelationalOperators(Instruction):
             result = symb1 < symb2
         if self.name == "GT":
             result = symb1 > symb2
-        if self.name == "EQ":
+        
+        # save result
+        frames.set_var(self.args[0], "bool", str(result))
+class Eq(Instruction):
+    def __init__(self, number):
+        super().__init__("GT", number)
+
+    def check_instr(self):
+        pass
+    def execute(self):
+        if (len(self.args) != 3):
+            exit(32)
+        # get type of symbol adn value
+        symb1, symb1_type = self.get_symb(1)
+        # check supported types
+        if not(re.match(r"int|bool|string|var|nil", symb1_type)):
+            exit(53)
+
+        # get type of symbol and value
+        symb2, symb2_type = self.get_symb(2)
+        if not(re.match(r"int|bool|string|var|nil", symb2_type)):
+            exit(53)
+
+
+        # check type compatibility
+        if symb1_type != symb2_type:
+            if (symb1_type == "nil" or symb2_type == "nil"):
+                result = False
+            else:
+                exit(53)
+        else:
             result = symb1 == symb2
         
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('bool', result)
+        frames.set_var(self.args[0], "bool", str(result))
+
 class BooleanOperators(Instruction):
     def __init__(self, opcode, number):
         super().__init__(opcode, number)
@@ -411,22 +483,25 @@ class BooleanOperators(Instruction):
         if not(re.match(r"true|false", symb2)):
             exit(53)
 
-        if self.opcode == "AND":
-            result = symb1 and symb2
-        elif self.opcode == "OR":
-            result = symb1 or symb2
-
+        # symb1 = symb1[0].upper() + symb1[1:]
+        # symb2 = symb2[0].upper() + symb2[1:]
+        if symb1 == "false":
+            symb1 = ""
+        if symb2 == "false":
+            symb2 = ""
+        if self.name == "AND":
+            result = bool(symb1) and bool(symb2)
+        if self.name == "OR":
+            result = bool(symb1) or bool(symb2)
+        
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('bool', result)
+        frames.set_var(self.args[0], "bool", str(result))
+
 
 class Not(Instruction):
     def __init__(self, number):
         super().__init__("NOT", number)
 
-    def check_instr(self):
-        pass
     def execute(self):
         if (len(self.args) != 2):
             exit(32)
@@ -435,35 +510,38 @@ class Not(Instruction):
         if symb1_type != "bool":
             exit(53)
 
-        result = not symb1
+        if symb1 == "false":
+            symb1 = ""
+        result = not bool(symb1)    
         
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('bool', result)
+        frames.set_var(self.args[0], "bool", str(result))
+
 class Int2Char(Instruction):
     def __init__(self, number):
         super().__init__("INT2CHAR", number)
 
-    def check_instr(self):
-        pass
     def execute(self):
         if (len(self.args) != 2):
             exit(32)
         # get type of symbol adn value
         symb1, symb1_type = self.get_symb(1)
+        if not(re.match(r"^[0-9]+$", symb1)):
+            exit(53)
+        symb1 = int(symb1)
+        # print(symb1_type)
         if symb1_type != "int":
+            stderr.write("wrong type bro\n")
             exit(52)    
         
-        if symb1 < 0 and symb1 > 1114111:
+        if symb1 < 0 or symb1 > 1114111:
             exit(58)
 
         result = chr(symb1)
+
         
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('string', result)
+        frames.set_var(self.args[0], "string", result)
 class StrI2Int(Instruction):
     def __init__(self, number):
         super().__init__("STRI2INT", number)
@@ -476,12 +554,16 @@ class StrI2Int(Instruction):
         # get type of symbol adn value
         symb1, symb1_type = self.get_symb(1)
         if symb1_type != "string":
-            exit(52)
+            exit(53)
         
         symb2, symb2_type = self.get_symb(2)
         if symb2_type != "int":
-            exit(52)
-        
+            exit(53)
+
+        if not(re.match(r"^[0-9]+$", symb2)):
+            exit(32)
+        symb2 = int(symb2)
+
         lenght = len(symb1)
         if symb2 > lenght:
             exit(58)
@@ -489,77 +571,98 @@ class StrI2Int(Instruction):
         result = ord(symb1[symb2])
         
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('string', result)
+        frames.set_var(self.args[0], "string", str(result))
+
 
 class Write(Instruction):
     def __init__(self, number):
         super().__init__("WRITE", number)
 
-    def check_instr(self):
-        # print("syntax analyzator")
-        pass
     def execute(self):
         if len(self.args) != 1:
             stderr.write("wrong number of arguments")
             exit(32)
 
-        arg_type = self.args[0].arg_type
+        value, arg_type = self.get_symb(0)
         if not(re.match(r"string|bool|int|nil|var", arg_type)):
             stderr.write("[WRITE] wrong type")
             exit(52)
 
-        if  arg_type == "var":
-            var = self.find_var(0)
-            if var == -1: exit(56)
-
-            result = var.get_variable_value()
-        elif arg_type == "bool":
-            if result == "True":
+        result = value
+        if arg_type == "bool":
+            if value == "True":
                 result = "true"
-            if result == "False":
+            if value == "False":
                 result = "false"
         elif arg_type == "nil":
             result = ""
         else:
-            result = self.args[0].value
-
+            result = value
+        
+        # find and replace escape sequence
+        ascii_char = re.search(r"([\\][0-9][0-9][0-9])", result)
+        if ascii_char is not None:
+            ascii_code = int(ascii_char.group()[1:])
+            if ascii_code == 35 or ascii_code == 92 or (ascii_code >= 0 and ascii_code <= 32):
+                result = re.sub(r"([\\][0-9][0-9][0-9])", chr(ascii_code), result)
         print(result, end='')
 class Read(Instruction):
-    def __init__(self, number):
+    def __init__(self, number, input_file):
         super().__init__("READ", number)
+        self.input_file = input_file
 
-    def check_instr(self):
-        # print("syntax analyzator")
-        pass
     def execute(self):
         if len(self.args) != 2:
             stderr.write("wrong number of arguments")
             exit(32)
 
-        if input_file is None:
-            value = input()
-        else:
-            print("soorrry")
-            # read from file
-            # f.open(input_file)
+        arg_value_type = self.args[1].get_argument_value()
+        symb_type = self.args[1].get_argument_type()
         
-        arg_type = self.args[1].arg_type
-        if not(re.match(r"string|bool|int", arg_type)):
+        if symb_type != "type":
+            exit(32)
+        if not(re.match(r"string|bool|int", arg_value_type)):
             stderr.write("[READ] wrong type")
-            exit(52)
+            exit(32)
 
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable(arg_type, value)
+        if self.input_file is None:
+            read_value = input()
+        else:
+            try:        
+                _input_file = open(self.input_file[0], "r")
+                input_src = _input_file.read().splitlines()
+            except FileNotFoundError:
+                stderr.write("file not found\n")
+                exit(11)
+
+        global read_line
+        try:
+            read_value = input_src[read_line]
+        except IndexError:
+            read_value = ""
+        read_line +=1
+
+        if read_value == "":
+            read_value = "nil"
+            arg_value_type = "nil"
+
+        if arg_value_type == "bool":
+            if read_value.lower() == "true":
+                read_value = "true"
+            else:
+                read_value = "false"
+        if arg_value_type == "int":
+            if not(re.match(r"^[-0-9]+$", read_value)):
+                read_value = "nil"
+                arg_value_type = "nil"
+
+
+        frames.set_var(self.args[0], arg_value_type, read_value)
+
 
 class Concat(Instruction):
     def __init__(self, number):
         super().__init__("CONCAT", number)
-
-    def check_instr(self):
-        pass
 
     def execute(self):
         if (len(self.args) != 3):
@@ -576,15 +679,14 @@ class Concat(Instruction):
         symb2, symb2_type = self.get_symb(2)
 
         # check supported types
-        if not(re.match(r"string", symb1_type)):
+        if not(re.match(r"string", symb2_type)):
             exit(53)
         
         result = symb1 + symb2
         
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('string', result)
+        frames.set_var(self.args[0], "string", str(result))
+
 
 class Strlen(Instruction):
     def __init__(self, number):
@@ -606,9 +708,8 @@ class Strlen(Instruction):
         result = len(symb1)
 
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('int', result)
+        frames.set_var(self.args[0], "int", str(result))
+
 
 class Getchar(Instruction):
     def __init__(self, number):
@@ -632,17 +733,17 @@ class Getchar(Instruction):
         if not(re.match(r"int", symb2_type)):
             exit(53)
         if not(re.match(r"^[-0-9]+$", symb2)):
-            exit(53)
+            exit(32)
+        symb2 = int(symb2)
         
-        if len(symb1) > symb2 or symb2 < 0:
+        if len(symb1) < symb2 or symb2 < 0:
             exit(58)
             
         result = symb1[symb2]
         
         # save result
-        var = self.find_var(0)
-        if var == -1: exit(56)
-        var.update_variable('string', result)
+        frames.set_var(self.args[0], "string", str(result))
+
         
 class Setchar(Instruction):
     def __init__(self, number):
@@ -656,19 +757,20 @@ class Setchar(Instruction):
         symb1, symb1_type = self.get_symb(1)
 
         # check type compatibility
-        if not(re.match(r"int", symb1_type)):
+        if not(re.match(r"int|var", symb1_type)):
             exit(53)
         if not(re.match(r"^[-0-9]+$", symb1)):
-            exit(53)
+            exit(32)
+        symb1 = int(symb1)
 
-        # if len(symb1) > symb1 or symb1 < 0:
-        #     exit(58)
-         # get type of symbol adn value
 
         symb2, symb2_type = self.get_symb(2)
         # check supported types
-        if not(re.match(r"string", symb2_type)):
+        if not(re.match(r"string|var", symb2_type)):
             exit(53)
+        # if type(symb2) != "str":
+        #     stderr.write("wrong type\n")
+        #     exit(53)
 
         length = len(symb2)
         if length == 0:
@@ -680,18 +782,12 @@ class Setchar(Instruction):
         if not(re.match(r"string", var_type)):
             exit(53)
 
-        var = self.find_var(0)
-        if var == -1: exit(56)
-
-        if var.get_type() != "string":
-            exit(53)
-
-        var_value = var.get_variable_value()
-        if (len(var_value) > symb1) or (symb1 < 0):
+        if (len(var) < symb1) or (symb1 < 0):
             exit(58)
 
-        result = var_value.replace(var_value[symb1], symb2)
-        var.update_variable('string', result)
+        result = var.replace(var[symb1], symb2)
+        frames.set_var(self.args[0], "string", str(result))
+
 
 
 class Type(Instruction):
@@ -703,24 +799,21 @@ class Type(Instruction):
         if (len(self.args) != 2):
             stderr.write("missing argument")
             exit(32)
-        result_var = self.find_var(0)
-        if result_var == -1: exit(56)
+        result_var = self.get_symb(0)
          # get type of symbol adn value
         if self.args[1].arg_type == "var": # is variable
-            var = self.find_var(1)
-            if var == -1: 
-                result_var.update_variable("nil", "nil")
-                return
-            
-            if var.value == "":
-                symb_type = ""
+            var, var_type = self.get_symb(1)           
+            if var == "":
+                result_type = ""
             else:
-                symb_type = var.get_variable_type()
+                result_type = var_type
         else:                               # is constant
-            symb_type = self.args[1].arg_type
+            result_type = self.args[1].arg_type
 
-        result = symb_type
-        result_var.update_variable("strint", result)
+        result = result_type
+        frames.set_var(self.args[0], "string", str(result))
+
+        
         
 class Dprint(Instruction):
     def __init__(self, number):
@@ -738,12 +831,12 @@ class Break(Instruction):
     def __init__(self, number):
         super().__init__("BREAK", number)
 
-
     def execute(self):
         if (len(self.args) != 0):
             stderr.write("missing argument")
             exit(32)
-        stderr.write("Instruction BREAK")
+        global position
+        stderr.write("[BREAK] instruction number" + position + "\n")
 
 class Label(Instruction):
     def __init__(self, opcode,  number, order):
@@ -799,7 +892,7 @@ class ConditionalJump(Instruction):
                 lab = self.find_label(0)
                 if lab == -1: 
                     stderr.write("lable doesnt exists\n")
-                    exit(53)
+                    exit(52)
                 jump_to = lab.get_position()
                 position = int(jump_to)-1
         else:
@@ -807,7 +900,7 @@ class ConditionalJump(Instruction):
                 lab = self.find_label(0)
                 if lab == -1: 
                     stderr.write("lable doesnt exists\n")
-                    exit(53)
+                    exit(52)
                 jump_to = lab.get_position()
                 position = int(jump_to)-1
 
@@ -824,7 +917,7 @@ class Jump(Instruction):
         lab = self.find_label(0)
         if lab == -1: 
             stderr.write("lable doesnt exists\n")
-            exit(53)
+            exit(52)
         jump_to = lab.get_position()
         position = int(jump_to)-1
 class Exit(Instruction):
@@ -840,7 +933,7 @@ class Exit(Instruction):
 
         symb, symb_type = self.get_symb(0)
         if symb_type != "int":
-            exit(57)
+            exit(53)
 
         if not(re.match(r"^[0-9]+$", symb)):
             exit(57)
@@ -858,10 +951,15 @@ class Empty:
     def execute(self):
         pass
 
+def is_integer(value):
+    if not(re.match(r"^-[0-9]+$", value)):
+            exit(32)
+    
 ###################################################
 
 ''' list of instruction '''
 instructions = []
+
 def sortFun(e):
     return e.number
 
@@ -874,6 +972,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     input_file = args.input
 
+    read_line = 0
+    if input_file is not None:
+        pass
+        # try:        
+        #     input_file = open(input_file[0], "r")
+        #     input_src = input_file.read().splitlines()
+        # except FileNotFoundError:
+        #     stderr.write("file not found\n")
+        #     exit(11)
     if args.source is None:
         # if input_file is None:
         #     exit(52)
@@ -888,25 +995,30 @@ if __name__ == "__main__":
     ''' reading from file '''
     try:
         tree = ET.parse(source_file) # add input
-    except ET.ParseError:
-        stderr.write("catching exeption\n")
+    except ET.ParseError as e:
+        message = getattr(e, 'message', str(e))
+        message = message.split(":")
+        if message[0] == "XML or text declaration not at start of entity":
+            exit(32)
+        stderr.write("catching exeption parsing\n")
         exit(31)
 
     root = tree.getroot()
-    frames = Frame()
-
-    # Define a custom key function for sorting
-    try:
-        root[:] = sorted(root, key=lambda child: child.get("order")) # sort by order pridar INT !!!!!!!!!
-    except TypeError:
-        stderr.write("catching exeption\n")
-        exit(31)
-
-    '''check xml''' 
-    # missing root tag
     if root.tag != 'program':
         stderr.write("mising root tag\n")
         exit(32) 
+
+    # Define a custom key function for sorting
+    try:
+        root[:] = sorted(root, key=lambda child: int(child.get("order"))) # sort by order pridar INT !!!!!!!!!
+    except TypeError:
+        stderr.write("catching exeption\n")
+        exit(32)
+    except ValueError:
+        stderr.write("catching exeption wrong order\n")
+        exit(32)
+
+    '''check xml''' 
     last_instruction_order = 0
     for child in root:
         if child.tag != 'instruction':
@@ -918,12 +1030,15 @@ if __name__ == "__main__":
                 exit(32)
 
         instruction_order = child.attrib["order"]
-        if not(re.match(r"^[0-9]+$", instruction_order)):
+        if not(re.match(r"^[ 0-9]+$", instruction_order)):
+            stderr.write("must be int\n")
             exit(32)
         else:
-            instruction_order = int(child.attrib["order"])
+            instruction_order = int(instruction_order)
 
+        # print(child.attrib["opcode"], child.attrib["order"])
         # check right order of instruction
+        # print(last_instruction_order, instruction_order)
         if last_instruction_order >= instruction_order: 
             stderr.write("wrong order\n")
             exit(32)
@@ -946,8 +1061,8 @@ if __name__ == "__main__":
             instructions.append(Pushframe(0))
         elif instruction_opcode == "POPFRAME":
             instructions.append(Popframe(0))
-        elif instruction_opcode == "Call":
-            instructions.append(Call(1))
+        elif instruction_opcode == "CALL":
+            instructions.append(Call(1, child.attrib["order"]))
         elif instruction_opcode == "RETURN":
             instructions.append(Return(0))
         elif instruction_opcode == "PUSHS":
@@ -956,8 +1071,10 @@ if __name__ == "__main__":
             instructions.append(Pops(1))
         elif instruction_opcode == "ADD" or instruction_opcode == "SUB" or instruction_opcode == "MUL" or instruction_opcode == "IDIV":
             instructions.append(ArithmeticOperations(instruction_opcode ,3))       
-        elif instruction_opcode == "LT" or instruction_opcode == "GT" or instruction_opcode == "EQ":
+        elif instruction_opcode == "LT" or instruction_opcode == "GT":
             instructions.append(RelationalOperators(instruction_opcode, 3))
+        elif instruction_opcode == "EQ":
+            instructions.append(Eq(3))
         elif instruction_opcode == "AND" or instruction_opcode == "OR":
             instructions.append(BooleanOperators(instruction_opcode, 3))
         elif instruction_opcode == "NOT":
@@ -969,7 +1086,7 @@ if __name__ == "__main__":
         elif instruction_opcode == "WRITE":
             instructions.append(Write(1))    
         elif instruction_opcode == "READ":
-            instructions.append(Read(2))    
+            instructions.append(Read(2, input_file))    
         elif instruction_opcode == "CONCAT":
             instructions.append(Concat(3))
         elif instruction_opcode == "STRLEN":
@@ -981,7 +1098,7 @@ if __name__ == "__main__":
         elif instruction_opcode == "SETCHAR":
             instructions.append(Setchar(3))
         elif instruction_opcode == "TYPE":
-            instructions.append(Type(3))
+            instructions.append(Type(2))
         elif instruction_opcode == "LABEL":
             instructions.append(Label(instruction_opcode, 1, child.attrib["order"]))
         elif instruction_opcode == "JUMP":
@@ -1006,12 +1123,27 @@ if __name__ == "__main__":
 
             # print(child.attrib["opcode"], child.attrib["order"], instr_arg.tag, instr_arg.attrib)
 
-            if not(re.match(r"arg[123]", instr_arg.tag)):
+            if not(re.match(r"arg[123][ ]*", instr_arg.tag)):
                 stderr.write("wrong argument format\n")
                 exit(32)
 
-            # add arguments to instruction        
-            instructions[instruction_order-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], child.find(instr_arg.tag).text)
+            # add arguments to instruction
+            argumen_value = child.find(instr_arg.tag).text
+            if argumen_value is None:
+                if instr_arg.attrib['type'] == "string":
+                    argumen_value = " "
+                else:
+                    stderr.write("wrong argumetn type\n")
+                    exit(32)
+            
+            try:        
+                instructions[instruction_order-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], argumen_value.strip())
+            except KeyError:
+                stderr.write("wrong type\n")
+                exit(32)
+            # except AttributeError:
+            #     instructions[instruction_order-1].add_argument(int(instr_arg.tag[3:]), instr_arg.attrib['type'], (child.find(instr_arg.tag).text))
+
             instructions[instruction_order-1].args.sort(key=sortFun)
 
             if instruction_opcode == "LABEL":
@@ -1035,9 +1167,11 @@ if __name__ == "__main__":
 
     position = 0
     while position < len(instructions):
+        # print(type(instructions[position]))
+        # print(position+1)
         instructions[position].execute()
         position += 1
-        # print(position)
+        
         # print("______instruction")
 
     exit(0)
