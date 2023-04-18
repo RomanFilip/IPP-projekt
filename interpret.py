@@ -31,6 +31,9 @@ class Argument:
     
     def get_argument_value(self):
         return self.value
+    
+    def get_argument_type(self):
+        return self.arg_type
 
 class Frame:
     def __init__(self):
@@ -328,6 +331,11 @@ class Move(Instruction):
     def __init__(self, number):
         super().__init__("MOVE", number)
 
+
+    def check_instr(self):
+        pass
+    
+    
     def check_instr(self):
         pass
     
@@ -339,8 +347,12 @@ class Move(Instruction):
         # var = self.find_var(0)  
         # if var == -1: exit(56)         
         # var.update_variable(self.args[1].arg_type, self.args[1].value)  
+        if self.args[1].arg_type == "var":
+            symb, symb_type = self.get_symb(1)
+            frames.set_var(self.args[0], symb_type, symb)
+        else:
+            frames.set_var(self.args[0], self.args[1].arg_type, self.args[1].value)
 
-        frames.set_var(self.args[0], self.args[1].arg_type, self.args[1].value)    
 
 class ArithmeticOperations(Instruction):
     def __init__(self, opcode, number):
@@ -435,9 +447,11 @@ class Eq(Instruction):
 
         # check type compatibility
         if symb1_type != symb2_type:
-            exit(53)
-
-        if self.name == "EQ":
+            if (symb1_type == "nil" or symb2_type == "nil"):
+                result = False
+            else:
+                exit(53)
+        else:
             result = symb1 == symb2
         
         # save result
@@ -593,30 +607,57 @@ class Write(Instruction):
                 result = re.sub(r"([\\][0-9][0-9][0-9])", chr(ascii_code), result)
         print(result, end='')
 class Read(Instruction):
-    def __init__(self, number):
+    def __init__(self, number, input_file):
         super().__init__("READ", number)
+        self.input_file = input_file
 
-    def check_instr(self):
-        # print("syntax analyzator")
-        pass
     def execute(self):
         if len(self.args) != 2:
             stderr.write("wrong number of arguments")
             exit(32)
 
-        if input_file is None:
-            value = input()
-        else:
-            print("soorrry")
-            # read from file
-            # f.open(input_file)
+        arg_value_type = self.args[1].get_argument_value()
+        symb_type = self.args[1].get_argument_type()
         
-        arg_type = self.args[1].arg_type
-        if not(re.match(r"string|bool|int", arg_type)):
+        if symb_type != "type":
+            exit(32)
+        if not(re.match(r"string|bool|int", arg_value_type)):
             stderr.write("[READ] wrong type")
-            exit(52)
+            exit(32)
 
-        frames.set_var(self.args[0], arg_type, str(value))
+        if self.input_file is None:
+            read_value = input()
+        else:
+            try:        
+                _input_file = open(self.input_file[0], "r")
+                input_src = _input_file.read().splitlines()
+            except FileNotFoundError:
+                stderr.write("file not found\n")
+                exit(11)
+
+        global read_line
+        try:
+            read_value = input_src[read_line]
+        except IndexError:
+            read_value = ""
+        read_line +=1
+
+        if read_value == "":
+            read_value = "nil"
+            arg_value_type = "nil"
+
+        if arg_value_type == "bool":
+            if read_value.lower() == "true":
+                read_value = "true"
+            else:
+                read_value = "false"
+        if arg_value_type == "int":
+            if not(re.match(r"^[-0-9]+$", read_value)):
+                read_value = "nil"
+                arg_value_type = "nil"
+
+
+        frames.set_var(self.args[0], arg_value_type, read_value)
 
 
 class Concat(Instruction):
@@ -892,7 +933,7 @@ class Exit(Instruction):
 
         symb, symb_type = self.get_symb(0)
         if symb_type != "int":
-            exit(57)
+            exit(53)
 
         if not(re.match(r"^[0-9]+$", symb)):
             exit(57)
@@ -918,6 +959,7 @@ def is_integer(value):
 
 ''' list of instruction '''
 instructions = []
+
 def sortFun(e):
     return e.number
 
@@ -930,6 +972,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     input_file = args.input
 
+    read_line = 0
+    if input_file is not None:
+        pass
+        # try:        
+        #     input_file = open(input_file[0], "r")
+        #     input_src = input_file.read().splitlines()
+        # except FileNotFoundError:
+        #     stderr.write("file not found\n")
+        #     exit(11)
     if args.source is None:
         # if input_file is None:
         #     exit(52)
@@ -1035,7 +1086,7 @@ if __name__ == "__main__":
         elif instruction_opcode == "WRITE":
             instructions.append(Write(1))    
         elif instruction_opcode == "READ":
-            instructions.append(Read(2))    
+            instructions.append(Read(2, input_file))    
         elif instruction_opcode == "CONCAT":
             instructions.append(Concat(3))
         elif instruction_opcode == "STRLEN":
