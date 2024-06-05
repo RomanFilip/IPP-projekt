@@ -80,7 +80,7 @@ class Frame:
             exit(52)
         if name not in frame_obj:
             stderr.write("variable doesnt exist\n")
-            exit(55)
+            exit(54)
         frame_obj[name]["value"] = value
         frame_obj[name]["type_arg"] = arg_type
 
@@ -94,7 +94,7 @@ class Frame:
         else:
             if name in frame_obj:
                 stderr.write("variable cant redifine\n")
-                exit(55)
+                exit(52)
             else:
                 frame_obj[name] = {"value": None, "type_arg": None}
             
@@ -320,7 +320,6 @@ class RelationalOperators(Instruction):
         if not(re.match(r"int|bool|string|var", symb2_type)):
             exit(53)
 
-
         # check type compatibility
         if symb1_type != symb2_type:
             exit(53)
@@ -505,10 +504,11 @@ class Write(Instruction):
         
         # find and replace escape sequence
         ascii_char = re.search(r"([\\][0-9][0-9][0-9])", result)
-        if ascii_char is not None:
+        while ascii_char is not None:
             ascii_code = int(ascii_char.group()[1:])
             if ascii_code == 35 or ascii_code == 92 or (ascii_code >= 0 and ascii_code <= 32):
-                result = re.sub(r"([\\][0-9][0-9][0-9])", chr(ascii_code), result)
+                result = result.replace(ascii_char.group(), chr(ascii_code))
+            ascii_char = re.search(r"([\\][0-9][0-9][0-9])", result)
 
         print(result, end='')
 
@@ -1033,10 +1033,7 @@ if __name__ == "__main__":
 
     position = 0
     while position < len(instructions):
-        # print(type(instructions[position]))
-        # print(position+1)
         instructions[position].execute()
         position += 1
-        # print("______instruction")
 
     
